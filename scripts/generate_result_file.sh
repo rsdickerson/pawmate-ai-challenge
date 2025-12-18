@@ -277,7 +277,7 @@ elif [[ -d "$workspace/tests" ]]; then
     AUTOMATED_TESTS_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/tests" 2>/dev/null || echo "$workspace/tests")
 fi
 
-# Generate result file as JSON - simplified minimal format
+# Generate result file as JSON - simplified minimal format with schema compliance
 TEMP_SCRIPT=$(mktemp)
 cat > "$TEMP_SCRIPT" <<'PYTHON_EOF'
 import json
@@ -299,62 +299,98 @@ def to_num(val):
 args = sys.argv[1:]
 i = 0
 
-# Build minimal result structure
+# Map timings to TTFR/TTFC structure
+generation_started = args[i+7] if len(args) > i+7 else ""
+app_started = args[i+11] if len(args) > i+11 else ""
+all_tests_pass = args[i+12] if len(args) > i+12 else ""
+total_minutes = to_num(args[i+13]) if len(args) > i+13 and args[i+13] else None
+
+# Map test results
+test_total = to_num(args[i+14]) if len(args) > i+14 and args[i+14] else None
+test_passed = to_num(args[i+15]) if len(args) > i+15 and args[i+15] else None
+test_failed = to_num(args[i+16]) if len(args) > i+16 and args[i+16] else None
+test_pass_rate = to_num(args[i+17]) if len(args) > i+17 and args[i+17] else None
+
+# Convert pass_rate percentage to decimal (0-1 range)
+passrate_decimal = None
+if test_pass_rate is not None:
+    passrate_decimal = test_pass_rate / 100.0 if test_pass_rate > 1 else test_pass_rate
+
+# Build schema-compliant result structure
 result = {
-    "run_info": {
-        "tool": args[i],
-        "version": args[i+1] or "",
-        "run_id": args[i+2],
-        "model": args[i+3],
-        "api_style": args[i+4],
-        "spec_version": args[i+5]
-    },
-    "timings": {},
-    "test_results": {},
-    "environment": {
-        "os": args[i+6]
-    },
-    "artifacts": {}
+    "schema_version": "1.0",
+    "result_data": {
+        "run_identity": {
+            "tool_name": args[i],
+            "tool_version": args[i+1] or "",
+            "run_id": args[i+2],
+            "run_number": int(args[i+25]) if len(args) > i+25 and args[i+25] else 1,
+            "target_model": args[i+3],
+            "api_style": args[i+4],
+            "spec_reference": args[i+5],
+            "workspace_path": args[i+26] if len(args) > i+26 else "",
+            "run_environment": args[i+6]
+        },
+        "metrics": {
+            "ttfr": {
+                "start_timestamp": generation_started or "",
+                "end_timestamp": app_started or "",
+                "minutes": total_minutes if app_started else "Unknown"
+            },
+            "ttfc": {
+                "start_timestamp": generation_started or "",
+                "end_timestamp": all_tests_pass or "",
+                "minutes": total_minutes if all_tests_pass else "Unknown"
+            },
+            "clarifications_count": "Unknown",
+            "interventions_count": "Unknown",
+            "reruns_count": "Unknown",
+            "acceptance": {
+                "model": args[i+3],
+                "pass_count": test_passed if test_passed is not None else "Unknown",
+                "fail_count": test_failed if test_failed is not None else "Unknown",
+                "not_run_count": "Unknown",
+                "passrate": passrate_decimal if passrate_decimal is not None else "Unknown"
+            },
+            "determinism_compliance": "Unknown",
+            "overreach_incidents_count": "Unknown",
+            "contract_completeness_passrate": "Unknown",
+            "instructions_quality_rating": "Unknown",
+            "reproducibility_rating": "Unknown"
+        },
+        "scores": {
+            "correctness_C": "Unknown",
+            "reproducibility_R": "Unknown",
+            "determinism_D": "Unknown",
+            "effort_E": "Unknown",
+            "speed_S": "Unknown",
+            "contract_docs_K": "Unknown",
+            "penalty_overreach_PO": "Unknown",
+            "overall_score": "Unknown"
+        },
+        "artifacts": {
+            "tool_transcript_path": "",
+            "run_instructions_path": args[i+23] if len(args) > i+23 else "",
+            "contract_artifact_path": args[i+22] if len(args) > i+22 else "",
+            "acceptance_checklist_path": args[i+24] if len(args) > i+24 else "",
+            "acceptance_evidence_path": "",
+            "determinism_evidence_path": "",
+            "overreach_evidence_path": "",
+            "ai_run_report_path": args[i+21] if len(args) > i+21 else "",
+            "automated_tests_path": ""
+        },
+        "submission": {
+            "submitted_timestamp": args[i+27] if len(args) > i+27 else "",
+            "submitted_by": args[i+28] if len(args) > i+28 else "",
+            "submission_method": args[i+29] if len(args) > i+29 else "automated"
+        }
+    }
 }
-
-# Add timings (only if they exist)
-if args[i+7]: result["timings"]["generation_started"] = args[i+7]
-if args[i+8]: result["timings"]["code_complete"] = args[i+8]
-if args[i+9]: result["timings"]["build_clean"] = args[i+9]
-if args[i+10]: result["timings"]["seed_loaded"] = args[i+10]
-if args[i+11]: result["timings"]["app_started"] = args[i+11]
-if args[i+12]: result["timings"]["all_tests_pass"] = args[i+12]
-if args[i+13]: result["timings"]["total_minutes"] = to_num(args[i+13])
-
-# Add test results (only if they exist)
-if args[i+14]: result["test_results"]["total"] = to_num(args[i+14])
-if args[i+15]: result["test_results"]["passed"] = to_num(args[i+15])
-if args[i+16]: result["test_results"]["failed"] = to_num(args[i+16])
-if args[i+17]: result["test_results"]["pass_rate"] = to_num(args[i+17])
-
-# Add tech stack to environment (only if they exist)
-if args[i+18]: result["environment"]["backend_runtime"] = args[i+18]
-if args[i+19]: result["environment"]["backend_framework"] = args[i+19]
-if args[i+20]: result["environment"]["database"] = args[i+20]
-
-# Add artifacts (only if they exist)
-if args[i+21]: result["artifacts"]["ai_run_report"] = args[i+21]
-if args[i+22]: result["artifacts"]["openapi_contract"] = args[i+22]
-if args[i+23]: result["artifacts"]["run_instructions"] = args[i+23]
-if args[i+24]: result["artifacts"]["acceptance_checklist"] = args[i+24]
-
-# Remove empty sections
-if not result["timings"]:
-    del result["timings"]
-if not result["test_results"]:
-    del result["test_results"]
-if not result["artifacts"]:
-    del result["artifacts"]
 
 print(json.dumps(result, indent=2, ensure_ascii=False))
 PYTHON_EOF
 
-# Call Python script with simplified arguments
+# Call Python script with arguments (including run_number and workspace for schema)
 python3 "$TEMP_SCRIPT" \
     "$tool" \
     "${tool_ver:-}" \
@@ -380,7 +416,12 @@ python3 "$TEMP_SCRIPT" \
     "${WORKSPACE_REL}/benchmark/ai_run_report.md" \
     "${CONTRACT_ARTIFACT_PATH:-}" \
     "${RUN_INSTRUCTIONS_PATH:-}" \
-    "${ACCEPTANCE_CHECKLIST_PATH:-}" > "$OUTPUT_PATH"
+    "${ACCEPTANCE_CHECKLIST_PATH:-}" \
+    "$RUN_NUMBER" \
+    "$WORKSPACE_REL" \
+    "$SUBMITTED_TIMESTAMP" \
+    "$SUBMITTED_BY" \
+    "$SUBMISSION_METHOD" > "$OUTPUT_PATH"
 
 # Clean up temp script
 rm -f "$TEMP_SCRIPT"
