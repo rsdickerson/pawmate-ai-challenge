@@ -100,6 +100,16 @@ To ensure reliable and comparable benchmarking results, you MUST use the followi
 
 **CRITICAL:** You MUST NOT use any other backend framework (e.g., NestJS, Fastify, Koa), runtime (e.g., Deno, Bun), or database (e.g., PostgreSQL, MySQL, MongoDB). Stick to the prescribed stack exactly.
 
+**CRITICAL — Sandbox Environment Compatibility:**
+- You MUST create a `.npmrc` file in the backend directory with sandbox-friendly settings:
+  - `cache=.npm-cache` (use local cache directory within workspace)
+  - `audit=false` (skip audit to avoid network requirements)
+  - `fund=false` (skip funding messages)
+  - `prefer-offline=true` (prefer offline mode)
+- All npm commands MUST work non-interactively in restricted environments
+- You MUST NOT create shell scripts for workflow execution (the AI tool executes commands directly via `run_terminal_cmd`)
+- All commands MUST be executable directly via terminal without manual intervention
+
 #### 3.1 Overreach guardrails (`NOR-*`)
 You MUST comply with all `NOR-*` items in the Master Spec. In particular:
 - You MUST NOT require any external integrations (`NOR-0001`).
@@ -205,10 +215,11 @@ This report enables direct comparison between different AI tool runs.
 After generating all code, you MUST execute the following loop-until-green workflow:
 
 #### 5.1 Build Loop
-1. Run the build command
-2. If build errors occur, fix them and rebuild
-3. Repeat until build succeeds with no errors
-4. Record timestamp for `build_clean`
+1. Execute `npm install` in the backend directory using `run_terminal_cmd` (or equivalent terminal command execution)
+2. If npm install fails due to sandbox restrictions, ensure `.npmrc` is configured correctly (see section 3.0) and retry
+3. If build errors occur, fix them and rebuild
+4. Repeat until build succeeds with no errors
+5. Record timestamp for `build_clean` when `npm install` completes successfully
 
 #### 5.2 Seed + Verify Loop
 1. Run reset-to-seed
@@ -217,25 +228,28 @@ After generating all code, you MUST execute the following loop-until-green workf
 4. Record timestamp for `seed_loaded`
 
 #### 5.3 Start Loop
-1. Start the application **in the background** (so it keeps running)
-2. If start errors occur, fix and restart
-3. Verify the API responds to a basic health/query check
-4. Record timestamp for `app_started` **at the moment the API is confirmed running and responsive**
-5. **Leave the API running** — do NOT stop it after tests pass
+1. Execute `npm start &` (or equivalent background execution) using `run_terminal_cmd` to start the application in the background
+2. Wait a few seconds for the server to initialize
+3. Execute `curl http://localhost:3000/health` (or equivalent health check) to verify the API responds
+4. If start errors occur, fix and restart
+5. Record timestamp for `app_started` **at the moment the API is confirmed running and responsive** (when health check succeeds)
+6. **Leave the API running** — do NOT stop it after tests pass
 
 #### 5.4 Test Loop
 1. Record `test_run_N_start` timestamp (where N is the iteration number, starting at 1)
-2. Run all automated tests
+2. Execute `npm test` using `run_terminal_cmd` (or equivalent) and capture the output
 3. Record `test_run_N_end` timestamp
-4. Record test results:
-   - `test_run_N_total`: Total number of tests
-   - `test_run_N_passed`: Number of tests that passed
-   - `test_run_N_failed`: Number of tests that failed
+4. Parse the test output to extract test results:
+   - `test_run_N_total`: Total number of tests (parse from test output)
+   - `test_run_N_passed`: Number of tests that passed (parse from test output)
+   - `test_run_N_failed`: Number of tests that failed (parse from test output)
    - `test_run_N_pass_rate`: Calculate as `passed / (passed + failed)` (decimal 0.0 to 1.0)
 5. If any tests fail, analyze failures, fix issues, and increment N for the next iteration
 6. Repeat steps 1-5 until all tests pass
 7. Record timestamp for `all_tests_pass` (same as the final `test_run_N_end`)
 8. Record `test_iterations`: The total number of test runs (value of N when all passed)
+
+**CRITICAL:** You MUST execute all commands using `run_terminal_cmd` (or your tool's equivalent terminal command execution capability). Do NOT create shell scripts or expect manual execution. The workflow MUST be fully autonomous.
 
 Update `benchmark/acceptance_checklist.md` to mark each `AC-*` item as passing once verified by tests.
 
@@ -251,6 +265,8 @@ Provide a single "Run Instructions" section at `{Workspace Path}/benchmark/run_i
 - verification commands/steps for:
   - seed invariants (`docs/Seed_Data.md`)
   - acceptance checks (`docs/Acceptance_Criteria.md`)
+
+**CRITICAL:** All commands in the run instructions MUST be executable via `run_terminal_cmd` (or equivalent) without manual intervention. Do NOT create shell scripts or workflow automation scripts - the AI tool executes commands directly. All commands MUST be copy-paste friendly and non-interactive.
 
 If you cannot make instructions fully non-interactive, record a clearly labeled `ASM-####` and explain why, but avoid this unless strictly necessary.
 
