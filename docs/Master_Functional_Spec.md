@@ -300,6 +300,60 @@ Ensure implementations are reproducible and benchmark-friendly by providing a de
 
 ---
 
+## Run Management Scripts (High-Level)
+#### Intent
+Ensure implementations provide standardized, operator-friendly scripts to start and stop all services in the correct order, enabling reliable benchmarking and demonstration.
+
+#### Normative Requirements
+- [Model A] REQ-OPS-0003-A MUST provide a `startup.sh` script in the root of the `PawMate/` folder that:
+  1. Calls `shutdown.sh` to ensure all services are stopped cleanly before starting
+  2. Starts the API/backend server
+  3. Starts the UI server (if UI is implemented)
+  4. Provides clear console output indicating successful startup and service URLs
+- [Model A] REQ-OPS-0004-A MUST provide a `shutdown.sh` script in the root of the `PawMate/` folder that:
+  1. Stops the UI server (if running)
+  2. Stops the API/backend server
+  3. Provides clear console output indicating successful shutdown
+- [Model A] REQ-OPS-0005-A These scripts MUST work reliably regardless of which profile is selected (Model A/B, REST/GraphQL).
+- [Model A] REQ-OPS-0006-A The scripts MUST handle cases where services are already running or already stopped without failing.
+- [Model A] REQ-OPS-0007-A The scripts MUST be executable from the `PawMate/` folder without requiring additional setup or environment variables beyond those documented in run instructions.
+
+#### Script Requirements
+**startup.sh MUST:**
+- Be executable on Unix-like systems (macOS, Linux)
+- Include `#!/bin/bash` shebang
+- Call `./shutdown.sh` as the first action to ensure clean state
+- Start backend/API server (typically `cd backend && npm start &` or equivalent)
+- Wait for API health check to confirm successful start (e.g., curl to health endpoint)
+- Start UI server if applicable (typically `cd ui && npm run dev &` or equivalent)
+- Output service URLs (API and UI) to console
+- Exit with status 0 on success, non-zero on failure
+
+**shutdown.sh MUST:**
+- Be executable on Unix-like systems (macOS, Linux)
+- Include `#!/bin/bash` shebang
+- Stop UI server first (if running) using appropriate kill commands
+- Stop API server second using appropriate kill commands
+- Use graceful shutdown where possible (SIGTERM before SIGKILL)
+- Handle cases where processes are not running (no error on missing process)
+- Exit with status 0 on success
+
+#### Rationale
+Standardized startup and shutdown scripts:
+- Enable one-command startup for benchmarking and demos
+- Ensure services start in correct order (API before UI)
+- Ensure services stop in correct order (UI before API to avoid orphaned connections)
+- Reduce operator friction and manual intervention
+- Provide consistent experience across different profiles and implementations
+- Make it trivial for evaluators to test the system
+
+#### Acceptance Criteria Anchors
+- AC-REQ-OPS-0003-A-01
+- AC-REQ-OPS-0004-A-01
+- AC-REQ-OPS-0005-A-01
+
+---
+
 ## Simple Image Handling (High-Level)
 #### Intent
 Allow associating images with Animals in a simple, maintainable way without relying on external integrations.
@@ -323,7 +377,7 @@ Allow associating images with Animals in a simple, maintainable way without rely
 Enable users to discover Animals via text search over animal content.
 
 #### Normative Requirements
-- [Model B] REQ-CORE-0101-B MUST provide a search capability that returns Animals matching a query string over at least `name` and `description`.
+- [Model B] REQ-CORE-0101-B MUST provide a search capability that returns Animals matching a query string over at least `name`, `description`, and `tags`.
 - [Model B] REQ-API-0101-B MUST define deterministic ordering for search results for a given dataset state and request parameters (including deterministic tie-break rules).
 - [Model B] REQ-API-0102-B MUST define how search results are paginated and how pagination interacts with deterministic ordering (details in `docs/API_Contract.md`).
 - [Model B] REQ-API-0103-B MUST define validation rules for `query` (including max length) and MUST expose observable error behavior for invalid queries in the contract.

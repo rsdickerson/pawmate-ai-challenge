@@ -964,6 +964,74 @@ Clear server management instructions:
 
 ---
 
+## REQ-UI-0018-B: Search Field Coverage (Model B)
+
+**NORMATIVE REQUIREMENT (Model B Only)**
+
+When implementing search functionality for Model B, the UI MUST call an API search endpoint that queries at minimum the `name`, `description`, and `tags` fields as specified in REQ-CORE-0101-B.
+
+### Search Field Requirements
+
+The search API endpoint MUST search across:
+- **name** (animal name, may be null)
+- **description** (animal description, required)
+- **tags** (array of tags, required)
+
+Implementations MAY search additional fields (e.g., species) but MUST include these three minimum fields.
+
+### UI Placeholder Text Guidance
+
+Search input placeholder text SHOULD accurately reflect what fields are searchable. 
+
+**Recommended Placeholders:**
+- "Search by name, description, or tags..."
+- "Find pets by name, traits, or characteristics..."
+- "Search animals by keywords..."
+
+**Avoid:**
+- "Search by name, description, or breed..." - `breed` is not a field in the data model
+- "Search by breed..." - Use `species` for dog/cat distinction; `tags` for breed-like characteristics
+
+### Rationale
+
+Tags are structured metadata designed for categorization and discovery (e.g., `vaccinated`, `senior`, `special-needs`, `indoor-only`, `behavior-support`). These attributes are exactly what users search for when finding animals. Making tags searchable is essential to providing effective search functionality.
+
+While the seed data includes test terms in descriptions (e.g., "senior cat", "indoor-only"), implementations must not rely solely on description matching. Tags provide structured, standardized attributes that enable consistent, effective search across all animals.
+
+### Checking the Contract
+
+**REST (OpenAPI):**
+```yaml
+/animals/search/query:
+  parameters:
+    - name: q
+      description: Search query (searches name, description, and tags)
+```
+
+**GraphQL:**
+```graphql
+searchAnimals(query: String!): [Animal!]!
+# Schema documentation should specify: "Searches name, description, and tags fields"
+```
+
+### UI Implementation
+
+When the user enters a search query:
+1. Call the search API endpoint with the query string
+2. Display results in the same format as browse/list
+3. Maintain pagination and ordering
+4. Show "No results found" message for empty results
+5. Provide clear way to exit search mode and return to browse
+
+**Example User Flow:**
+- User enters "senior" in search box
+- UI calls API: `GET /v1/animals/search/query?q=senior`
+- API searches name, description, AND tags
+- Results include animals with "senior" in any of these fields
+- User can clear search to return to browse mode
+
+---
+
 ## Implementation Checklist
 
 Use this checklist to verify UI implementation compliance:

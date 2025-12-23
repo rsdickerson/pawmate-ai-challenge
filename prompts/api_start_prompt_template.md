@@ -110,13 +110,19 @@ To ensure reliable and comparable benchmarking results, you MUST use the followi
   - `fund=false` (skip funding messages)
   - `prefer-offline=true` (prefer offline mode)
 - All npm commands MUST work non-interactively in restricted environments
-- You MUST NOT create shell scripts for workflow execution (the AI tool executes commands directly via `run_terminal_cmd`)
+- During generation, you MUST NOT create shell scripts for your own workflow (you execute commands directly via `run_terminal_cmd`)
+- However, your final deliverable MUST include operator-friendly scripts (see Required Outputs section)
 - All commands MUST be executable directly via terminal without manual intervention
 
 **CRITICAL — Package.json Scripts:**
 - You MUST include a `"stop"` script in package.json to stop the server:
   - `"stop": "pkill -f 'node src/server.js' || true"`
 - This provides a convenient way for operators to stop the server after testing
+
+**CRITICAL — Run Management Scripts:**
+- Your final implementation MUST include `startup.sh` and `shutdown.sh` scripts in the root of the `PawMate/` folder
+- See Required Outputs (section 4) for detailed script requirements
+- These scripts are for operator use, not for your own generation workflow
 
 **CRITICAL — Network Access for npm install:**
 - The `npm install` step requires network access to download dependencies
@@ -270,6 +276,103 @@ You MUST generate automated tests that:
 - Are runnable non-interactively via a single command (e.g., `npm test`, `pytest`, `mvn test`)
 - Cover both happy-path and error-path scenarios as specified in `docs/Acceptance_Criteria.md`
 - Produce clear pass/fail output that can be recorded as evidence
+
+#### 4.7 Run Management Scripts (MUST)
+You MUST create two executable shell scripts in the root of the `{{WORKSPACE_PATH}}` directory:
+
+**`startup.sh` Requirements:**
+- Include `#!/bin/bash` shebang line
+- Make executable: `chmod +x startup.sh`
+- MUST call `./shutdown.sh` as the first action to ensure clean state
+- Start the API/backend server in background (e.g., `cd backend && npm start &`)
+- Wait for API health check confirmation (e.g., `sleep 3 && curl http://localhost:3000/health`)
+- Start the UI server in background if UI is implemented (e.g., `cd ui && npm run dev &`)
+- Print clear success messages with service URLs
+- Exit with status 0 on success, non-zero on failure
+
+**`shutdown.sh` Requirements:**
+- Include `#!/bin/bash` shebang line
+- Make executable: `chmod +x shutdown.sh`
+- Stop UI server first if running (e.g., `lsof -ti:5173 | xargs kill -9 2>/dev/null || true`)
+- Stop API server second (e.g., `lsof -ti:3000 | xargs kill -9 2>/dev/null || true`)
+- Use graceful approaches where possible (SIGTERM before SIGKILL)
+- Handle cases where processes are not running without failing
+- Print clear success messages
+- Exit with status 0 on success
+
+**Script Purpose:**
+- Enable one-command startup for benchmarking and demos
+- Ensure services start in correct order (API before UI)
+- Ensure services stop in correct order (UI before API)
+- Provide consistent operator experience across all profiles
+
+**Example startup.sh:**
+```bash
+#!/bin/bash
+set -e
+
+echo "PawMate Startup..."
+
+# Ensure clean state
+./shutdown.sh
+
+# Start API server
+echo "Starting API server..."
+cd backend
+npm start &
+API_PID=$!
+cd ..
+
+# Wait for API to be ready
+echo "Waiting for API to start..."
+sleep 3
+for i in {1..10}; do
+  if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+    echo "✓ API server running at http://localhost:3000"
+    break
+  fi
+  sleep 1
+done
+
+# Start UI server (if exists)
+if [ -d "ui" ]; then
+  echo "Starting UI server..."
+  cd ui
+  npm run dev &
+  UI_PID=$!
+  cd ..
+  sleep 3
+  echo "✓ UI server running at http://localhost:5173"
+fi
+
+echo ""
+echo "PawMate services started successfully!"
+echo "API: http://localhost:3000"
+if [ -d "ui" ]; then
+  echo "UI:  http://localhost:5173"
+fi
+```
+
+**Example shutdown.sh:**
+```bash
+#!/bin/bash
+
+echo "PawMate Shutdown..."
+
+# Stop UI server
+echo "Stopping UI server..."
+lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+
+# Stop API server
+echo "Stopping API server..."
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+
+# Also try pkill as fallback
+pkill -f "node.*server.js" 2>/dev/null || true
+pkill -f "vite" 2>/dev/null || true
+
+echo "✓ All services stopped"
+```
 
 Place tests under `{Workspace Path}/backend/` in an appropriate test folder for the chosen technology.
 

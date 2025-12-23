@@ -227,7 +227,7 @@ Required operations (contract MUST define equivalents):
 - **SearchAnimals**
   - Inputs MUST include: `query` and pagination parameters; MAY include status filter reuse if supported.
   - Contract MUST define matching semantics, including:
-    - which fields are searched (at minimum `name` and `description`),
+    - which fields are searched (at minimum `name`, `description`, and `tags`),
     - case sensitivity,
     - substring vs token matching (and any tokenization rules).
   - Contract MUST define empty-query behavior (ValidationError vs match-all).

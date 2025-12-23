@@ -108,8 +108,9 @@ Each run MUST produce the following, stored in a run folder (structure is implem
 - **Run record**: benchmark inputs, start/end timestamps, TTFR, TTFC, rerun count, intervention log.
 - **Prompt wrapper**: the exact prompt text submitted to the tool.
 - **Full tool transcript**: raw chat/log output from the tool (including clarifications and responses).
-- **Generated run instructions**: “how to run”, “how to reset-to-seed”, “how to verify acceptance”.
-- **AI run report** (tool-produced): `benchmark/ai_run_report.md` with tool-reported timestamps. If automated tests are run, the tool MUST have started the API/application successfully and recorded the corresponding “app started and responsive” timestamp before reporting any `tests_run_N` timestamp.
+- **Generated run instructions**: "how to run", "how to reset-to-seed", "how to verify acceptance".
+- **Run management scripts**: `startup.sh` and `shutdown.sh` in the root of the `PawMate/` folder per `docs/Master_Functional_Spec.md` REQ-OPS-0003-A through REQ-OPS-0007-A. These scripts MUST enable one-command startup and shutdown of all services.
+- **AI run report** (tool-produced): `benchmark/ai_run_report.md` with tool-reported timestamps. If automated tests are run, the tool MUST have started the API/application successfully and recorded the corresponding "app started and responsive" timestamp before reporting any `tests_run_N` timestamp.
 - **Contract artifact**: OpenAPI or GraphQL schema (and any required supporting files) meeting `docs/API_Contract.md`.
 - **Acceptance evidence**:
   - model selected (A or B),

@@ -223,6 +223,9 @@ The contract MUST define:
 - how punctuation/hyphens are handled (e.g., `indoor-only`),
 so these queries are testable and deterministic.
 
+**Note on Search Field Coverage:**
+While the above test queries can all be satisfied by matching terms in the `description` field alone (e.g., "Calm senior cat", "Playful puppy", "Tripod dog", "indoor-only"), implementations MUST search the `tags` field as well per REQ-CORE-0101-B. Tags are structured metadata intended for categorization and discovery (e.g., `vaccinated`, `senior`, `special-needs`, `indoor-only`). Including tags in search provides users with the ability to find animals by specific attributes and characteristics, which is a core use case for the tag system.
+
 ---
 
 ## Reset-to-Seed Behavior + Post-Reset Invariants (Normative; Benchmark-Critical)

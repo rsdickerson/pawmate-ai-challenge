@@ -147,6 +147,44 @@ Update or extend the existing `benchmark/run_instructions.md` to include:
 - UI start command
 - How to access the UI (URL/port)
 
+#### 4.4 Update Run Management Scripts (MUST)
+You MUST update the `startup.sh` and `shutdown.sh` scripts in the root of the `PawMate/` folder to include UI server management:
+
+**Update `startup.sh` to:**
+- Start the UI server after the API server is confirmed running
+- Wait for UI server to be responsive (if applicable)
+- Display the UI URL in the success output (e.g., `http://localhost:5173`)
+
+**Update `shutdown.sh` to:**
+- Stop the UI server before stopping the API server
+- Use appropriate port/process kill commands for the UI technology stack (e.g., Vite typically runs on port 5173)
+
+**If scripts don't exist:**
+- Create both scripts following the requirements in `docs/Master_Functional_Spec.md` REQ-OPS-0003-A through REQ-OPS-0007-A
+- See the API prompt template for example script templates
+
+**Script Update Example:**
+In `startup.sh`, add after API starts:
+```bash
+# Start UI server
+if [ -d "ui" ]; then
+  echo "Starting UI server..."
+  cd ui
+  npm run dev &
+  UI_PID=$!
+  cd ..
+  sleep 3
+  echo "✓ UI server running at http://localhost:5173"
+fi
+```
+
+In `shutdown.sh`, add before API shutdown:
+```bash
+# Stop UI server
+echo "Stopping UI server..."
+lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+```
+
 ---
 
 ### 5) API Server Verification (MUST)
