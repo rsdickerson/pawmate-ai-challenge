@@ -127,6 +127,7 @@ Run the verification script to check that `SPEC_VERSION`, the spec doc, and the 
 - `docs/Acceptance_Criteria.md` — acceptance criteria used to determine "feature complete".
 - `docs/Benchmarking_Method.md` — benchmarking procedure + required artifacts + evidence-first scoring inputs.
 - `docs/SANDBOX_SOLUTION.md` — guidance for handling sandbox restrictions during build (npm install).
+- `docs/GRAPHQL_RESOLVER_PATTERN.md` — critical GraphQL resolver structure requirements for express-graphql + buildSchema.
 
 ## Operator Guide (step-by-step)
 This repository does **not** ship an application. The "usable application" is created by the AI tool under test in your local workspace, along with the benchmark artifact bundle (contract + instructions + evidence).

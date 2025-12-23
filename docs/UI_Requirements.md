@@ -1,6 +1,6 @@
 # UI Implementation Requirements
 
-> **Spec Version:** `v1.0.1`  
+> **Spec Version:** `v1.0.3`  
 > **Purpose:** Define normative requirements and principles for UI implementations that consume the PawMate API
 
 ## Document Purpose
@@ -168,7 +168,9 @@ While exact field names are defined by the API contract, these are common patter
 **Resource Identifiers:**
 - Entity IDs (animal ID, application ID, etc.)
 - Event IDs (history event ID, evaluation ID, etc.)
+- User/actor identifiers (adopter ID, user ID, etc.)
 - **Rule:** Never send IDs when creating new resources
+- **Example:** When submitting an adoption application, the API should auto-generate the adopter identifier, not require it from the user
 
 **Timestamps:**
 - Creation timestamps
@@ -309,14 +311,25 @@ The evaluation operation:
 ### UI Implementation Guidance
 
 **Evaluate Application Interface:**
-- ✅ Selector to choose which application to evaluate
+- ✅ Display a list of applications that are ready to be evaluated (typically applications with SUBMITTED status)
+- ✅ Allow staff to select an application from the list (not require manual ID entry)
+- ✅ Show application details for the selected application
 - ✅ Trigger button ("Run Evaluation", "Evaluate", or similar)
 - ❌ NO manual input for compatibility assessment
 - ❌ NO manual input for evaluation explanation
 - ❌ NO manual scoring or checklist for staff to fill out
 
+**Recommended UX Pattern:**
+```
+1. List pending applications in a table/list (applicationId, animalId, adopter name, submitted date)
+2. "Select" button for each application
+3. Display selected application details
+4. "Run Evaluation" button
+5. Display evaluation results
+```
+
 **What to Display:**
-- Before evaluation: Application details from API
+- Before evaluation: List of pending applications, then selected application details from API
 - After evaluation: Results returned by API (compatibility, explanation, rule findings)
 
 ### Checking the API Contract
@@ -329,6 +342,9 @@ The response schema will include computed evaluation data:
 - Compatibility result (PASS/FAIL/etc.)
 - System-generated explanation
 - Optional rule findings/details
+
+**Recommended: List Applications Query**
+To improve staff UX, the API should provide a way to list applications (e.g., `GET /applications?status=SUBMITTED` or `listApplications(applicationStatus: SUBMITTED)`). If not available, the UI may need to list animals and their related applications, but a direct applications list is more efficient.
 
 ### Principle
 
@@ -632,7 +648,31 @@ The UI MUST still handle API validation errors gracefully and display them to th
 
 ---
 
-## REQ-UI-0010-A: Error Display
+## REQ-UI-0010-A: Staff Workflow UX
+
+**NORMATIVE REQUIREMENT**
+
+The UI SHOULD provide efficient workflows for staff operations. For operations that work on specific records (evaluate application, record decision, etc.):
+
+**Recommended Pattern:**
+1. Display a list/table of pending items (applications, animals, etc.)
+2. Allow staff to select an item from the list
+3. Show details of the selected item
+4. Provide action buttons for the selected item
+
+**Anti-Pattern to Avoid:**
+- Requiring staff to manually type resource IDs (application IDs, animal IDs) from memory or external sources
+- Forcing staff to navigate away to find IDs before performing actions
+
+**Example (Evaluate Application):**
+- ✅ Good: Show list of submitted applications → Select → Display details → Evaluate button
+- ❌ Bad: Show text input "Enter Application ID" → Require staff to type ID manually
+
+This improves usability by reducing context switching and manual ID entry errors.
+
+---
+
+## REQ-UI-0011-A: Error Display
 
 **NORMATIVE REQUIREMENT**
 
@@ -675,7 +715,7 @@ try {
 
 ---
 
-## REQ-UI-0011-A: Loading States
+## REQ-UI-0012-A: Loading States
 
 **NORMATIVE REQUIREMENT**
 
@@ -690,7 +730,7 @@ The UI SHOULD provide visual feedback during API requests to improve perceived p
 
 ---
 
-## REQ-UI-0012-A: Success Feedback
+## REQ-UI-0013-A: Success Feedback
 
 **NORMATIVE REQUIREMENT**
 
@@ -709,7 +749,7 @@ The UI MUST provide clear success feedback after successful operations.
 
 ---
 
-## REQ-UI-0013-A: Image Display
+## REQ-UI-0014-A: Image Display
 
 **NORMATIVE REQUIREMENT**
 
@@ -739,7 +779,7 @@ const images = await fetch(`/v1/images/${animalId}`).then(r => r.json())
 
 ---
 
-## REQ-UI-0014-A: History Timeline Display
+## REQ-UI-0015-A: History Timeline Display
 
 **NORMATIVE REQUIREMENT**
 
@@ -763,6 +803,164 @@ The UI SHOULD display animal history in reverse chronological order (most recent
 | `APPLICATION_EVALUATED` | "Application Evaluated" |
 | `DECISION_RECORDED` | "Decision Recorded" |
 | `OVERRIDE_RECORDED` | "Decision Override" |
+
+---
+
+## REQ-UI-0016-A: Dependent Form Field Management
+
+**NORMATIVE REQUIREMENT**
+
+When a form has dependent fields (where the value of one field affects the valid options for another field), the UI MUST ensure form state consistency when the controlling field changes.
+
+### Dependent Field Pattern
+
+Common scenario: A dropdown selection determines valid options for a subsequent dropdown.
+
+**Example: Animal Status Transition Form**
+- Field A (controlling): "Select Animal" → determines current status
+- Field B (dependent): "New Status" → valid values depend on current status
+
+**Required Behavior:**
+1. When the controlling field changes, the dependent field MUST be updated to a valid value
+2. The dependent field SHOULD default to the first valid option for the new context
+3. If no valid options exist for the new context, the dependent field should be cleared/disabled with appropriate messaging
+
+### Anti-Pattern: Stale Dependent Values
+
+❌ **WRONG - Leaving Stale Values:**
+```javascript
+// User selects Animal 1 (status: INTAKE)
+// Form state: { fromStatus: 'INTAKE', toStatus: 'MEDICAL_EVALUATION' } ✓
+
+// User selects Animal 2 (status: AVAILABLE)
+// Form state: { fromStatus: 'AVAILABLE', toStatus: 'MEDICAL_EVALUATION' } ✗
+// Problem: MEDICAL_EVALUATION is not a valid transition from AVAILABLE
+```
+
+✅ **CORRECT - Updating Dependent Values:**
+```javascript
+// User selects Animal 1 (status: INTAKE)
+// Form state: { fromStatus: 'INTAKE', toStatus: 'MEDICAL_EVALUATION' } ✓
+
+// User selects Animal 2 (status: AVAILABLE)
+// Form state: { fromStatus: 'AVAILABLE', toStatus: 'APPLICATION_PENDING' } ✓
+// Correct: toStatus updated to first valid transition for AVAILABLE
+```
+
+### Implementation Guidance
+
+```javascript
+// Example: Handling animal selection that affects valid status transitions
+const handleAnimalChange = (selectedAnimalId) => {
+  const animal = animals.find(a => a.id === selectedAnimalId);
+  const currentStatus = animal.status;
+  
+  // Determine valid next states based on current status
+  const validTransitions = getValidTransitionsFor(currentStatus);
+  
+  // Update form state with consistent values
+  setFormData({
+    animalId: selectedAnimalId,
+    fromStatus: currentStatus,
+    toStatus: validTransitions[0] || currentStatus // Default to first valid option
+  });
+};
+```
+
+### Other Examples of Dependent Fields
+
+This pattern applies to any form where fields have dependencies:
+- **Species → Breed:** When species changes, breed options must be updated
+- **Country → State/Province:** When country changes, state options must be updated
+- **Application → Animal Details:** When application changes, display corresponding animal info
+
+**Key Principle:** Never allow form state to contain logically inconsistent or invalid combinations of values. Always update dependent fields when their controlling field changes.
+
+---
+
+## REQ-UI-0017-A: Development Server Management
+
+**NORMATIVE REQUIREMENT**
+
+The UI implementation MUST provide clear, documented commands to start and stop the development server. This enables developers and evaluators to easily run and test the UI during development and benchmarking.
+
+### Required Commands
+
+The UI project MUST include:
+
+1. **Start Server Command** - Starts the development server
+2. **Stop Server Instruction** - Clear method to stop the development server
+3. **Build Command** (optional) - Creates production build if applicable
+
+### Documentation Requirements
+
+The UI project MUST document these commands in a README file or package.json scripts section.
+
+### Implementation Examples
+
+**Node.js/npm Projects:**
+```json
+// package.json
+{
+  "scripts": {
+    "dev": "vite",           // or "react-scripts start", "next dev", etc.
+    "start": "vite",         // alias for consistency
+    "build": "vite build",   // production build
+    "preview": "vite preview" // preview production build
+  }
+}
+```
+
+**Usage:**
+- Start: `npm run dev` or `npm start`
+- Stop: `Ctrl+C` in terminal (document this)
+- Build: `npm run build`
+
+**Python Projects:**
+```python
+# README.md should document:
+# Start: python -m http.server 8080
+# Stop: Ctrl+C
+# Or for frameworks like Flask/Django, document their specific commands
+```
+
+**Other Frameworks:**
+- Document the framework-specific commands
+- Include port number information
+- Include any required environment setup
+
+### README Documentation
+
+The UI project MUST include a README that specifies:
+```markdown
+## Running the UI
+
+### Development Server
+Start the development server:
+```
+npm run dev
+```
+
+The UI will be available at: http://localhost:5173
+
+To stop the server, press `Ctrl+C` in the terminal.
+
+### Production Build
+Create a production build:
+```
+npm run build
+```
+```
+
+### Rationale
+
+Clear server management instructions:
+- Enable quick setup for evaluators during benchmarking
+- Reduce friction during development handoffs
+- Prevent confusion about how to run the UI
+- Allow for clean restarts when troubleshooting
+
+**Anti-Pattern:** Undocumented or unclear process for starting/stopping the UI, requiring evaluators to search through code or guess commands.
 
 ---
 
@@ -827,6 +1025,14 @@ Use this checklist to verify UI implementation compliance:
 - [ ] Loading states during API calls
 - [ ] Images displayed with graceful fallbacks
 - [ ] History timeline in reverse chronological order
+- [ ] Dependent form fields update when controlling field changes (no stale values)
+
+### Development & Deployment
+- [ ] README documents how to start development server
+- [ ] README documents how to stop development server (e.g., Ctrl+C)
+- [ ] Server start command included in package.json scripts (if Node.js)
+- [ ] Port number documented
+- [ ] Any required environment setup documented
 
 ### Testing
 - [ ] Captured actual API requests in browser dev tools
@@ -931,6 +1137,14 @@ If automated UI tests exist:
 
 ## Version History
 
+- `v1.0.3` (2025-12-23): Added development server management requirements
+  - REQ-UI-0017-A: Development Server Management
+  - Requires documented commands to start/stop development server
+  - Ensures clear setup instructions for evaluators and developers
+- `v1.0.2` (2025-12-23): Added dependent form field management guidance
+  - REQ-UI-0016-A: Dependent Form Field Management
+  - Addresses form state consistency when one field affects valid options for another
+  - Prevents invalid form submissions due to stale dependent values
 - `v1.0.1` (2025-12-18): Initial UI requirements specification
   - Principles-based guidance for UI-API integration
   - Contract-driven approach (not hardcoded endpoints)

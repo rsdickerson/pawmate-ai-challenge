@@ -45,6 +45,10 @@ See `profiles/README.md` for details on profile contents.
 8. `Scoring_Rubric.md` — Evidence-based scoring rubric (Unknown handling, overreach penalties).
 9. `Comparison_Report_Template.md` — Cross-tool comparison report template + standard table schema.
 
+### Technical guidance (in `docs/`)
+- `SANDBOX_SOLUTION.md` — Handling sandbox restrictions during npm install (network permissions)
+- `GRAPHQL_RESOLVER_PATTERN.md` — Critical GraphQL resolver structure requirements for express-graphql + buildSchema
+
 ### Prompt templates (in `prompts/` — NOT read by AI during implementation)
 - `prompts/api_start_prompt_template.md` — API/backend generation prompt template (rendered by `initialize_run.sh`)
 - `prompts/ui_start_prompt_template.md` — UI generation prompt template (rendered by `initialize_run.sh`)
@@ -60,6 +64,10 @@ See `profiles/README.md` for details on profile contents.
 - [Run Log Template](Run_Log_Template.md)
 - [Scoring Rubric](Scoring_Rubric.md)
 - [Comparison Report Template](Comparison_Report_Template.md)
+
+### Technical guidance (in `docs/`)
+- [Sandbox Solution](SANDBOX_SOLUTION.md)
+- [GraphQL Resolver Pattern](GRAPHQL_RESOLVER_PATTERN.md)
 
 ### Prompt templates (in `prompts/`)
 - [API Start Prompt Template](../prompts/api_start_prompt_template.md)

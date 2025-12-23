@@ -149,17 +149,42 @@ Update or extend the existing `benchmark/run_instructions.md` to include:
 
 ---
 
-### 5) Run Instructions Requirements (Non-interactive) (MUST)
+### 5) API Server Verification (MUST)
+**CRITICAL — Before Starting UI Development:**
+
+Before generating any UI code, you MUST verify that the API server is running:
+
+1. **Check API health endpoint**: Execute `curl http://localhost:3000/health` (or equivalent health check endpoint)
+2. **If API is NOT running**: 
+   - Output a clear message: "⚠️ API server is not running. Starting API server..."
+   - Start the API server: `cd backend && npm start &`
+   - Wait for server initialization (3-5 seconds)
+   - Verify health check succeeds
+   - Output confirmation: "✅ API server is running and responsive"
+3. **If API is running**: Output confirmation: "✅ API server is already running"
+
+**IMPORTANT:** The UI cannot be developed or tested without a running API. You MUST ensure the API is accessible before proceeding with UI implementation.
+
+---
+
+### 6) Run Instructions Requirements (Non-interactive) (MUST)
 The updated run instructions MUST include:
+- **Prerequisites section** stating:
+  - The API server MUST be running before starting the UI
+  - How to start the API server: `cd backend && npm start`
+  - How to verify API is running: `curl http://localhost:3000/health`
 - UI build command (e.g., `npm run build` in the ui folder)
 - UI start command (e.g., `npm run dev` or serve from backend)
-- UI access URL (e.g., `http://localhost:3000`)
+- UI access URL (e.g., `http://localhost:5173`)
+- **Troubleshooting section** for "API not running" errors with instructions to start the backend
+
+**CRITICAL:** The instructions MUST make it explicit that both the API and UI servers need to be running simultaneously, typically in separate terminal windows.
 
 If you cannot make instructions fully non-interactive, record a clearly labeled `ASM-####`.
 
 ---
 
-### 6) Reporting Format (MUST)
+### 7) Reporting Format (MUST)
 At completion, output a "UI Run Summary" at `{Workspace Path}/benchmark/ui_run_summary.md` that includes:
 - **Timestamps** (**ISO-8601 UTC with milliseconds**, e.g. `2025-12-17T22:59:33.123Z`):
   - `ui_generation_started`: When you began generating UI code
@@ -184,12 +209,22 @@ At completion, output a "UI Run Summary" at `{Workspace Path}/benchmark/ui_run_s
 
 ---
 
-### 7) Final State (MUST)
+### 8) Final State (MUST)
 At the end of this run:
+- The **API server MUST be running** and responsive at `http://localhost:3000`
+  - Verify with: `curl http://localhost:3000/health`
+  - If not running, start it: `cd backend && npm start &`
 - The **UI MUST be running** and accessible
 - The **UI MUST build successfully** with no errors (`ui_build_success` = true)
 - The **UI MUST run without runtime errors** (`ui_running` = true)
-- Provide a **clickable URL** to access the UI (e.g., `http://localhost:5173`)
+- Provide **clickable URLs** for both:
+  - API: `http://localhost:3000` (or configured port)
+  - UI: `http://localhost:5173` (or configured port)
+
+**CRITICAL:** Before providing the final URLs, you MUST verify both servers are running:
+1. Check API health: `curl http://localhost:3000/health`
+2. Check UI accessibility: `curl http://localhost:5173` (or configured UI port)
+3. Only after both respond successfully, provide the clickable URLs
 
 **IMPORTANT:** The user will click the URL to open the UI in their browser. Make sure both backend and UI are running before providing the final URL.
 
@@ -197,16 +232,16 @@ At the end of this run:
 
 ---
 
-### 7.5) Automated Results Submission (MUST)
+### 8.5) Automated Results Submission (MUST)
 Upon completion of the UI implementation, you MUST update the result file to reflect UI completion.
 
-#### 7.5.1 Update Result File
+#### 8.5.1 Update Result File
 If a result file was already generated for the API run, update it to include UI completion metrics:
 - Update timestamps if UI completion affects TTFC
 - Note UI completion in the human-readable section
 - Update artifact paths if UI artifacts were created
 
-#### 7.5.2 Generate/Update Result File
+#### 8.5.2 Generate/Update Result File
 Run the result generation script to create or update the standardized result file:
 ```bash
 cd {Spec Root}
@@ -215,14 +250,14 @@ cd {Spec Root}
 
 This will generate a result file that includes both API and UI completion.
 
-#### 7.5.3 Validate and Submit
+#### 8.5.3 Validate and Submit
 Follow the same validation and submission steps as in the API prompt (section 8.5.3-8.5.5).
 
 **Note**: The UI run is typically part of the same benchmark run as the API. The result file should reflect the complete implementation (API + UI) when both are finished.
 
 ---
 
-### 8) LLM Usage Tracking (MUST)
+### 9) LLM Usage Tracking (MUST)
 **IMPORTANT — Operator Action Required:**
 
 Before completing this run, you MUST prompt the operator to check their LLM usage/plan status. The operator needs to record their usage metrics to compare before and after the run.
@@ -256,12 +291,14 @@ Check usage at: [Tool-specific instructions based on detected tool]
 
 ---
 
-### 9) Start Now
+### 10) Start Now
 **YOUR VERY FIRST OUTPUT must include the `ui_generation_started` timestamp (ISO-8601 UTC with milliseconds):**
 
 ```
 ui_generation_started: [current ISO-8601 UTC timestamp with milliseconds, e.g. 2025-12-17T22:59:33.123Z]
 ```
+
+**THEN, immediately verify the API server is running** (see section 5). If not running, start it before proceeding.
 
 Then confirm you understand that the backend already exists and begin UI implementation for the selected Target Model.
 

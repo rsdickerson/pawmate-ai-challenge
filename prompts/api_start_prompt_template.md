@@ -113,11 +113,105 @@ To ensure reliable and comparable benchmarking results, you MUST use the followi
 - You MUST NOT create shell scripts for workflow execution (the AI tool executes commands directly via `run_terminal_cmd`)
 - All commands MUST be executable directly via terminal without manual intervention
 
+**CRITICAL — Package.json Scripts:**
+- You MUST include a `"stop"` script in package.json to stop the server:
+  - `"stop": "pkill -f 'node src/server.js' || true"`
+- This provides a convenient way for operators to stop the server after testing
+
 **CRITICAL — Network Access for npm install:**
 - The `npm install` step requires network access to download dependencies
 - If you encounter sandbox network restrictions, you MUST request network permissions using `required_permissions: ['network']`
 - See `docs/SANDBOX_SOLUTION.md` for detailed guidance on handling sandbox restrictions during the build loop
 - The build loop MUST complete successfully before proceeding to seed, start, or test steps
+
+**CRITICAL — GraphQL Implementation (If GraphQL is selected):**
+- If you choose **GraphQL** as your API style, you MUST implement resolvers compatible with `express-graphql` and `buildSchema`
+- When using `buildSchema` (schema-first approach), there are TWO critical requirements:
+
+**1. Flat Resolver Structure** - resolvers MUST be provided as a **flat object** at the root level:
+  ```javascript
+  const resolvers = {
+    getAnimal: ({ animalId }) => { /* implementation */ },
+    listAnimals: ({ status, limit, offset }) => { /* implementation */ },
+    intakeAnimal: ({ input }) => { /* implementation */ },
+    // ... all other queries and mutations at root level
+  };
+  module.exports = resolvers;
+  ```
+
+**2. Correct Parameter Signature** - arguments are passed in the FIRST parameter (not the second):
+  ```javascript
+  // CORRECT - destructure args from first parameter
+  listAnimals: ({ status, limit = 20, offset = 0 }) => {
+    // status, limit, offset come from the first parameter
+    if (status) {  // This will work correctly
+      // filter by status
+    }
+  }
+  
+  // INCORRECT - using underscore to ignore first parameter
+  listAnimals: (_, { status, limit = 20, offset = 0 }) => {
+    // status, limit, offset will ALL be undefined!
+    // This is the Apollo Server signature, NOT buildSchema signature
+    if (status) {  // This will never execute - status is always undefined
+      // filter will never work
+    }
+  }
+  ```
+**INCORRECT patterns (DO NOT USE):**
+
+Pattern 1 - Nested structure:
+  ```javascript
+  // This will NOT work with buildSchema + express-graphql
+  const resolvers = {
+    Query: {
+      getAnimal: ({ animalId }) => { /* implementation */ },
+      listAnimals: ({ status, limit, offset }) => { /* implementation */ }
+    },
+    Mutation: {
+      intakeAnimal: ({ input }) => { /* implementation */ }
+    }
+  };
+  module.exports = resolvers; // Will cause "Cannot return null for non-nullable field" errors
+  ```
+
+Pattern 2 - Wrong parameter signature (even with flat structure):
+  ```javascript
+  // This will NOT work - args will all be undefined
+  const resolvers = {
+    listAnimals: (_, { status, limit, offset }) => {
+      // status, limit, offset are undefined - filter won't work!
+    }
+  };
+  module.exports = resolvers; // Filtering, pagination, all args will be ignored
+  ```
+
+**If you create nested resolvers for organization**, flatten them AND use correct signatures:
+  ```javascript
+  const resolvers = {
+    Query: {
+      // CORRECT signature - args in first parameter
+      getAnimal: ({ animalId }) => { /* ... */ },
+      listAnimals: ({ status, limit, offset }) => { /* ... */ }
+    },
+    Mutation: {
+      // CORRECT signature - args in first parameter
+      intakeAnimal: ({ input }) => { /* ... */ }
+    }
+  };
+  
+  // Flatten for buildSchema compatibility
+  module.exports = {
+    ...resolvers.Query,
+    ...resolvers.Mutation
+  };
+  ```
+
+**Why this matters:**
+- `buildSchema` + `express-graphql` passes arguments as `(args, context, info, rootValue)`
+- Apollo Server and other implementations use `(parent, args, context, info)`
+- Using `(_, { args })` pattern from Apollo Server will cause ALL arguments to be `undefined`
+- See `docs/GRAPHQL_RESOLVER_PATTERN.md` for detailed explanation
 
 #### 3.1 Overreach guardrails (`NOR-*`)
 You MUST comply with all `NOR-*` items in the Master Spec. In particular:
@@ -247,7 +341,7 @@ After generating all code, you MUST execute the following loop-until-green workf
 3. Execute `curl http://localhost:3000/health` (or equivalent health check) to verify the API responds
 4. If start errors occur, fix and restart
 5. Record timestamp for `app_started` **at the moment the API is confirmed running and responsive** (when health check succeeds)
-6. **Leave the API running** — do NOT stop it after tests pass
+6. **Leave the API running during testing** — it will be stopped after all tests pass
 
 #### 5.4 Test Loop
 1. Record `test_run_N_start` timestamp (where N is the iteration number, starting at 1)
@@ -267,13 +361,27 @@ After generating all code, you MUST execute the following loop-until-green workf
 
 Update `benchmark/acceptance_checklist.md` to mark each `AC-*` item as passing once verified by tests.
 
+#### 5.5 Stop Server After Testing
+After all tests pass and the `all_tests_pass` timestamp is recorded:
+1. Stop the API server using `pkill -f "node src/server.js"` or equivalent
+2. Verify the server is stopped (port 3000 should be free)
+3. The server should be stopped to leave a clean state for the operator
+
+**IMPORTANT:** The server will need to be manually restarted by the operator for UI integration. The run instructions MUST document how to start the server for this purpose.
+
 ---
 
 ### 6) Run Instructions Requirements (Non-interactive) (MUST)
 Provide a single "Run Instructions" section at `{Workspace Path}/benchmark/run_instructions.md` that includes:
 - prerequisites (runtime versions if needed)
 - install/build commands (non-interactive; no prompts)
-- start commands (API)
+- start commands (API) with two distinct subsections:
+  - **For Testing and Verification**: How to start the server for development/testing
+  - **For UI Integration**: Explicit instructions that the API must be running before starting the UI
+- **stop commands (API)**: How to stop the server after testing, including:
+  - Using `npm stop` (recommended)
+  - Manual methods (lsof, kill, pkill)
+  - Ctrl+C for foreground processes
 - test command
 - reset-to-seed command/mutation
 - verification commands/steps for:
@@ -281,6 +389,11 @@ Provide a single "Run Instructions" section at `{Workspace Path}/benchmark/run_i
   - acceptance checks (`docs/Acceptance_Criteria.md`)
 
 **CRITICAL:** All commands in the run instructions MUST be executable via `run_terminal_cmd` (or equivalent) without manual intervention. Do NOT create shell scripts or workflow automation scripts - the AI tool executes commands directly. All commands MUST be copy-paste friendly and non-interactive.
+
+**CRITICAL — Server Management:** The run instructions MUST clearly state that:
+- The server is stopped after testing completes (clean state)
+- The operator must manually start the server before building the UI
+- The API must be running for the UI to connect to it
 
 If you cannot make instructions fully non-interactive, record a clearly labeled `ASM-####` and explain why, but avoid this unless strictly necessary.
 
@@ -305,10 +418,11 @@ Do NOT claim completion without providing these paths.
 
 ### 8) Final State (MUST)
 At the end of this run:
-- The **API MUST be running** in the background and accessible
+- The **API server MUST be stopped** (clean state for operator)
 - All tests MUST pass
 - The AI run report MUST be complete with all timestamps
-- Provide a **clickable URL** to access the API (e.g., `http://localhost:3000`)
+- The run instructions MUST document how to start the API for UI integration
+- Provide a **clickable URL** for where the API will be accessible when started (e.g., `http://localhost:3000`)
 
 ---
 

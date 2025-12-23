@@ -162,8 +162,9 @@ Required operations (contract MUST define equivalents):
 ### Model A — Adoption Applications (Submit / Evaluate / Decision)
 Required operations (contract MUST define equivalents):
 - **SubmitAdoptionApplication**
-  - Inputs MUST include: `animalId` and the contract-defined adopter/application fields.
-  - Success MUST create `applicationId`.
+  - Inputs MUST include: `animalId` and the contract-defined adopter/application fields (name, email, household details).
+  - Inputs MUST NOT include: `applicationId` (auto-generated), adopter identifier/key (auto-generated), or timestamps.
+  - Success MUST create `applicationId` and any adopter identifier needed for tracking.
   - Eligibility MUST be explicit: at minimum, animal must be `AVAILABLE`.
   - Errors MUST include: ValidationError, NotFound (unknown `animalId`), Conflict (animal not eligible or policy violation).
 - **EvaluateAdoptionApplication**
