@@ -564,10 +564,11 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 **For the operator:**
 1. **Check your current LLM usage/billing status NOW** (before the run completes)
 2. After the run completes, check again to determine the usage for this run
-3. **Record the following metrics in the AI run report**:
+3. **Record the following metrics in the AI run report** at `{Workspace Path}/benchmark/ai_run_report.md` under the "LLM Usage" section:
    - `backend_model_used`: Model name/version (e.g., "claude-sonnet-4.5", "gpt-4-turbo")
    - `backend_requests`: Total number of LLM API requests made
    - `backend_tokens`: Total tokens used (input + output combined)
+   - `usage_source`: `tool_reported` (if from tool), `operator_estimated` (if manually calculated), or `unknown` (if unavailable)
 
 **Tool-specific usage checking instructions:**
 - **Cursor**: Check Cursor Settings → Usage/Billing, or visit the Cursor dashboard/account page
@@ -581,14 +582,33 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 ```
 ⚠️  LLM USAGE TRACKING REQUIRED
 
-Before marking this backend run as complete, please record:
-- backend_model_used: [Model name/version]
-- backend_requests: [Number of LLM API requests]
-- backend_tokens: [Total tokens used]
+Before marking this backend run as complete, please:
+1. Check your LLM usage/billing status
+2. Record the following metrics in the AI run report at {Workspace Path}/benchmark/ai_run_report.md under the "LLM Usage" section:
+   - backend_model_used: [Model name/version]
+   - backend_requests: [Number of LLM API requests]
+   - backend_tokens: [Total tokens used]
+   - usage_source: tool_reported | operator_estimated | unknown
 
 Tool: [Detected tool name]
 Check usage at: [Tool-specific instructions based on detected tool]
 ```
+
+**Next steps for operator:**
+1. **Record LLM usage metrics** in `{Workspace Path}/benchmark/ai_run_report.md` (see LLM Usage section above)
+2. **Generate result file**:
+   ```bash
+   cd {Spec Root}
+   ./scripts/generate_result_file.sh --run-dir {Workspace Path}/..
+   ```
+3. **Submit result file via email** (recommended):
+   ```bash
+   cd {Spec Root}
+   ./scripts/submit_result.sh {generated-filename}.json
+   ```
+   The submission script will validate the file and open your email client with pre-filled content.
+
+See `{Spec Root}/docs/Submitting_Results.md` for detailed submission instructions.
 
 ---
 
@@ -603,10 +623,12 @@ cd {Spec Root}
 ```
 
 This script will:
-- Extract metrics from your AI run report
+- Extract metrics from your AI run report (including LLM usage if recorded)
 - Parse run configuration
-- Generate a standardized result file (defaults to current directory)
-- **Note**: The result file should be copied to `pawmate-ai-results/results/submitted/` for processing
+- Generate a standardized result file in the current directory
+- Display the path to the generated file and next steps for submission
+
+**Note**: The result file is generated in the challenge repository root. The operator will submit it via email (see section 8.5.3).
 
 #### 8.5.2 Complete Result File
 The generated result file will contain placeholders for metrics that must be manually completed. You MUST:
@@ -619,31 +641,45 @@ The generated result file will contain placeholders for metrics that must be man
    - Any other metrics that can be determined from your run
 3. Calculate scores using `docs/Scoring_Rubric.md` (if sufficient data is available)
 
-#### 8.5.3 Validate Result File
-Before submission, validate the result file (in the results repository):
+#### 8.5.3 Submit Result File (Email Submission - Recommended)
+**For external developers (recommended method):**
+
+After generating the result file, the operator should submit via email:
+
 ```bash
-cd /path/to/pawmate-ai-results
-./scripts/validate_result.sh results/submitted/{generated-filename}.json
+cd {Spec Root}
+./scripts/submit_result.sh {generated-filename}.json
 ```
 
-Fix any validation errors before proceeding.
+This script will:
+- Validate the result file
+- Prompt for optional attribution (name/GitHub username)
+- Open email client with pre-filled content
+- Include JSON result data in email body (no attachment needed)
 
-#### 8.5.4 Submit Result File
-After validation passes, the result file is ready for submission. The operator will:
+**Email will be sent to**: `pawmate.ai.challenge@gmail.com` (or configured submission email)
+
+**Note**: The `submit_result.sh` script validates the file automatically, so separate validation is not required.
+
+#### 8.5.4 Alternative: Git-Based Submission (For Maintainers Only)
+**Only for maintainers with write access to the `pawmate-ai-results` repository:**
+
+If the operator has write access to the results repository, they may submit via pull request:
 1. Copy the result file to `pawmate-ai-results/results/submitted/`
-2. Review the result file for completeness
-3. In the results repository, commit it: `git add results/submitted/{filename}.json`
-4. Create a pull request to submit the results
+2. In the results repository, validate: `./scripts/validate_result.sh results/submitted/{filename}.json`
+3. Commit and create a pull request
+
+**Important**: External developers should use email submission (section 8.5.3), not git-based submission.
 
 **Note**: If you cannot execute the generation script (e.g., no shell access), create the result file manually using `results/result_template.json` as a template, following `docs/Result_File_Spec.md` for the exact format.
 
 #### 8.5.5 Result File Requirements
 The result file MUST:
-- Follow the naming convention: `{tool-slug}_{model}_{api-type}_{run-number}_{timestamp}.md`
-- Include complete YAML frontmatter with all required fields
-- Include human-readable content following `docs/Run_Log_Template.md` structure
+- Follow the naming convention: `{tool-slug}_{model}_{api-type}_{run-number}_{timestamp}.json`
+- Be valid JSON following `docs/Result_File_Spec.md` format
+- Include all required fields from the result file specification
 - Reference all artifact paths correctly
-- Be validated successfully before submission
+- Be validated successfully before submission (validation happens automatically in `submit_result.sh`)
 
 ---
 

@@ -263,6 +263,9 @@ The generation script extracts metrics from your run summary files:
 - \`app_started\` - When application started running
 - \`all_tests_pass\` - When all tests passed (or final test timestamp)
 - Test iteration count and pass rates
+- \`clarifications_count\` - Number of AI questions requiring operator input (ideal: 0)
+- \`interventions_count\` - Number of manual code edits or continuation prompts needed (ideal: 0)
+- \`reruns_count\` - Number of times the prompt was re-issued (ideal: 0)
 
 **From \`benchmark/ui_run_summary.md\` (if UI was built):**
 - \`ui_generation_started\` - When UI code generation began
@@ -326,6 +329,12 @@ The submission script will:
 - \`test_iterations\` - Number of test/fix cycles to reach passing state
 - \`test_passrate_final\` - Final test pass rate (e.g., "20/20" or "100%")
 
+### Operator Intervention Metrics
+- \`clarifications_count\` - Number of AI questions requiring operator input (ideal: 0)
+- \`interventions_count\` - Number of continuation prompts, error messages provided, or manual code edits (ideal: 0)
+- \`reruns_count\` - Number of times the prompt was re-issued (ideal: 0)
+- **Quality indicator**: Lower counts indicate better autonomous completion from initial prompts
+
 ### Optional Quality Indicators
 If collected during run:
 - Assumption count (\`ASM-*\` items)
@@ -350,6 +359,7 @@ If you cannot run the generation script, create the result file manually:
 - ✅ Binary build/test success indicators (not manual inspection scores)
 - 🔢 Quantitative iteration counts (not qualitative assessments)
 - 📊 LLM token usage metrics (when available from tool)
+- 🎯 Operator intervention tracking (measures autonomous completion from initial prompts)
 
 **What NOT to Include**:
 - ❌ Manual quality ratings or scores
@@ -363,6 +373,7 @@ If you cannot run the generation script, create the result file manually:
 - ✅ Test pass/fail counts from automated tests
 - ✅ Iteration counts to reach passing state
 - ✅ LLM usage metrics if available from tool
+- ✅ Operator intervention counts (continuation prompts, error messages, clarifications, manual edits)
 
 ## Resources
 

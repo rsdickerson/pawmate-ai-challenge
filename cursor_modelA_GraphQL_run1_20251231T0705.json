@@ -1,0 +1,54 @@
+{
+  "schema_version": "2.0",
+  "result_data": {
+    "run_identity": {
+      "tool_name": "cursor",
+      "tool_version": "2.2.43",
+      "run_id": "cursor-ModelA-20251231T0705",
+      "run_number": 1,
+      "target_model": "A",
+      "api_style": "GraphQL",
+      "spec_reference": "v2.7.0",
+      "workspace_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0705/PawMate",
+      "run_environment": "Darwin 24.6.0"
+    },
+    "implementations": {
+      "api": {
+        "generation_metrics": {
+          "llm_model": "Unknown",
+          "start_timestamp": "2025-12-31T13:21:13.300Z",
+          "end_timestamp": "2025-12-31T13:27:36.300Z",
+          "duration_minutes": 6.4,
+          "clarifications_count": 0,
+          "interventions_count": 0,
+          "reruns_count": 0,
+          "test_runs": [],
+          "test_iterations_count": 3,
+          "llm_usage": null
+        },
+        "acceptance": {
+          "pass_count": 17,
+          "fail_count": 0,
+          "not_run_count": 0,
+          "passrate": 1.0
+        },
+        "artifacts": {
+          "contract_artifact_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0705/PawMate/backend/src/schema.graphql",
+          "run_instructions_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0705/PawMate/benchmark/run_instructions.md",
+          "source_code_path": "",
+          "acceptance_checklist_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0705/PawMate/benchmark/acceptance_checklist.md",
+          "acceptance_evidence_path": "",
+          "determinism_evidence_path": "",
+          "overreach_evidence_path": "",
+          "ai_run_report_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0705/PawMate/benchmark/ai_run_report.md",
+          "automated_tests_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0705/PawMate/backend/tests/api.test.js"
+        }
+      }
+    },
+    "submission": {
+      "submitted_timestamp": "2025-12-31T13:29:49.000Z",
+      "submitted_by": "Scott Dickerson",
+      "submission_method": "automated"
+    }
+  }
+}

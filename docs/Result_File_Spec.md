@@ -115,7 +115,7 @@ Example: `cursor-v0-43_modelA_REST_run1_20241218T1430.json`
 - **Field**: `schema_version`
 - **Type**: String
 - **Required**: Yes
-- **Description**: Version of this specification (currently "1.0")
+- **Description**: Version of this specification (currently "2.0" — see `pawmate-ai-results/schemas/result-schema-v2.0-proposed.json`)
 - **Purpose**: Enables future schema evolution
 
 ### Run Identity
@@ -123,6 +123,25 @@ All fields in `result_data.run_identity` are required and MUST match the values 
 
 ### Metrics
 All fields in `result_data.metrics` are required. Use `"Unknown"` if evidence is missing (per `docs/Benchmarking_Method.md` evidence-first rule).
+
+#### Operator Intervention Tracking (v2.0 Schema)
+
+The benchmark measures how well the AI creates the entire application from the initial prompts without operator assistance. The following fields track operator interventions:
+
+**For API Implementation** (`result_data.implementations.api.generation_metrics`):
+- **`clarifications_count`**: Number of questions the AI asked that required operator input to proceed. Ideal: 0
+- **`interventions_count`**: Number of manual code edits, config changes, or file modifications performed by the operator. Ideal: 0 (any non-zero value indicates the AI needed manual fixes)
+- **`reruns_count`**: Number of times the prompt was re-issued or the run was restarted. Ideal: 0
+
+**For UI Implementation** (`result_data.implementations.ui.generation_metrics`):
+- **`clarifications_count`**: Number of questions the AI asked that required operator input to proceed. Ideal: 0
+- **`interventions_count`**: Number of manual code edits, config changes, or file modifications performed by the operator. Ideal: 0
+- **`reruns_count`**: Number of times the prompt was re-issued or the run was restarted. Ideal: 0
+- **`backend_changes_required`**: Boolean indicating whether the UI build required changes to the backend/API code. Ideal: false
+
+**Note on Continuation Prompts**: The number of "continue" messages sent when the AI stops before completion should be included in `interventions_count` if they were necessary to complete the work. The ideal benchmark run requires zero continuation prompts — the AI should work autonomously from the initial prompts to completion.
+
+**Recording Interventions**: Operators should track these counts during the run and record them in the AI run report or run notes. The result file generation script will attempt to extract these from the AI run report, but operators may need to manually add them if not automatically detected.
 
 ### Scores
 All fields in `result_data.scores` are required. May be `"Unknown"` if required metrics are unknown.

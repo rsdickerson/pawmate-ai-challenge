@@ -226,6 +226,23 @@ print(round((end - start).total_seconds() / 60, 1))
         TEST_ITERATIONS_COUNT=$(grep -i "test_iterations" "$AI_RUN_REPORT" | head -1 | sed 's/.*test_iterations.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
+    # Extract operator intervention metrics
+    CLARIFICATIONS_COUNT=""
+    INTERVENTIONS_COUNT=""
+    RERUNS_COUNT=""
+    
+    if grep -qi "clarifications_count\|clarifications:" "$AI_RUN_REPORT"; then
+        CLARIFICATIONS_COUNT=$(grep -i "clarifications_count\|clarifications:" "$AI_RUN_REPORT" | head -1 | sed 's/.*clarifications.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    fi
+    
+    if grep -qi "interventions_count\|interventions:" "$AI_RUN_REPORT"; then
+        INTERVENTIONS_COUNT=$(grep -i "interventions_count\|interventions:" "$AI_RUN_REPORT" | head -1 | sed 's/.*interventions.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    fi
+    
+    if grep -qi "reruns_count\|reruns:" "$AI_RUN_REPORT"; then
+        RERUNS_COUNT=$(grep -i "reruns_count\|reruns:" "$AI_RUN_REPORT" | head -1 | sed 's/.*reruns.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    fi
+    
     # Extract LLM usage metrics
     LLM_INPUT_TOKENS=""
     LLM_OUTPUT_TOKENS=""
@@ -355,9 +372,9 @@ UI_LLM_REQUESTS_COUNT=""
 UI_LLM_ESTIMATED_COST=""
 UI_LLM_COST_CURRENCY="USD"
 UI_LLM_USAGE_SOURCE="unknown"
-UI_CLARIFICATIONS_COUNT=0
-UI_INTERVENTIONS_COUNT=0
-UI_RERUNS_COUNT=0
+UI_CLARIFICATIONS_COUNT=""
+UI_INTERVENTIONS_COUNT=""
+UI_RERUNS_COUNT=""
 UI_BACKEND_CHANGES_REQUIRED=false
 
 if [[ -d "$workspace/ui" ]]; then
@@ -403,6 +420,19 @@ if [[ -d "$workspace/ui" ]]; then
             
             if grep -qi "estimated_cost" "$workspace/benchmark/ui_run_summary.md"; then
                 UI_LLM_ESTIMATED_COST=$(grep -i "estimated_cost" "$workspace/benchmark/ui_run_summary.md" | head -1 | sed 's/.*estimated_cost.*: *//' | sed 's/\*\*//g' | sed 's/USD//' | tr -d '[:space:]')
+            fi
+            
+            # Extract UI intervention metrics
+            if grep -qi "clarifications_count\|clarifications:" "$workspace/benchmark/ui_run_summary.md"; then
+                UI_CLARIFICATIONS_COUNT=$(grep -i "clarifications_count\|clarifications:" "$workspace/benchmark/ui_run_summary.md" | head -1 | sed 's/.*clarifications.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+            fi
+            
+            if grep -qi "interventions_count\|interventions:" "$workspace/benchmark/ui_run_summary.md"; then
+                UI_INTERVENTIONS_COUNT=$(grep -i "interventions_count\|interventions:" "$workspace/benchmark/ui_run_summary.md" | head -1 | sed 's/.*interventions.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+            fi
+            
+            if grep -qi "reruns_count\|reruns:" "$workspace/benchmark/ui_run_summary.md"; then
+                UI_RERUNS_COUNT=$(grep -i "reruns_count\|reruns:" "$workspace/benchmark/ui_run_summary.md" | head -1 | sed 's/.*reruns.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
             fi
         fi
     fi
@@ -511,41 +541,44 @@ test_passed = to_num(args[i+15]) if len(args) > i+15 and args[i+15] else None
 test_failed = to_num(args[i+16]) if len(args) > i+16 and args[i+16] else None
 test_pass_rate = to_num(args[i+17]) if len(args) > i+17 and args[i+17] else None
 test_iterations_count = to_num(args[i+18]) if len(args) > i+18 and args[i+18] else None
-llm_input_tokens = to_num(args[i+19]) if len(args) > i+19 and args[i+19] else None
-llm_output_tokens = to_num(args[i+20]) if len(args) > i+20 and args[i+20] else None
-llm_total_tokens = to_num(args[i+21]) if len(args) > i+21 and args[i+21] else None
-llm_requests_count = to_num(args[i+22]) if len(args) > i+22 and args[i+22] else None
-llm_estimated_cost = to_num(args[i+23]) if len(args) > i+23 and args[i+23] else None
-llm_cost_currency = args[i+24] if len(args) > i+24 and args[i+24] else "USD"
-llm_usage_source = args[i+25] if len(args) > i+25 and args[i+25] in ["tool_reported", "operator_estimated", "unknown"] else "unknown"
-llm_model = args[i+26] if len(args) > i+26 else "Unknown"
-ai_run_report_path = args[i+27] if len(args) > i+27 else ""
-contract_artifact_path = args[i+28] if len(args) > i+28 else ""
-run_instructions_path = args[i+29] if len(args) > i+29 else ""
-acceptance_checklist_path = args[i+30] if len(args) > i+30 else ""
-run_number = int(args[i+31]) if len(args) > i+31 and args[i+31] else 1
-workspace_path = args[i+32] if len(args) > i+32 else ""
-ui_source_path = args[i+33] if len(args) > i+33 else ""
-ui_run_summary_path = args[i+34] if len(args) > i+34 else ""
-ui_build_success = args[i+35] if len(args) > i+35 else ""
-ui_start_timestamp = args[i+36] if len(args) > i+36 else ""
-ui_end_timestamp = args[i+37] if len(args) > i+37 else ""
-ui_duration_minutes = to_num(args[i+38]) if len(args) > i+38 and args[i+38] else None
-ui_llm_model = args[i+39] if len(args) > i+39 else "Unknown"
-ui_llm_input_tokens = to_num(args[i+40]) if len(args) > i+40 and args[i+40] else None
-ui_llm_output_tokens = to_num(args[i+41]) if len(args) > i+41 and args[i+41] else None
-ui_llm_total_tokens = to_num(args[i+42]) if len(args) > i+42 and args[i+42] else None
-ui_llm_requests_count = to_num(args[i+43]) if len(args) > i+43 and args[i+43] else None
-ui_llm_estimated_cost = to_num(args[i+44]) if len(args) > i+44 and args[i+44] else None
-ui_llm_cost_currency = args[i+45] if len(args) > i+45 and args[i+45] else "USD"
-ui_llm_usage_source = args[i+46] if len(args) > i+46 and args[i+46] in ["tool_reported", "operator_estimated", "unknown"] else "unknown"
-ui_clarifications_count = to_num(args[i+47]) if len(args) > i+47 and args[i+47] else 0
-ui_interventions_count = to_num(args[i+48]) if len(args) > i+48 and args[i+48] else 0
-ui_reruns_count = to_num(args[i+49]) if len(args) > i+49 and args[i+49] else 0
-ui_backend_changes_required = args[i+50].lower() == "true" if len(args) > i+50 and args[i+50] else False
-submitted_timestamp = args[i+51] if len(args) > i+51 else ""
-submitted_by = args[i+52] if len(args) > i+52 else ""
-submission_method = args[i+53] if len(args) > i+53 else "automated"
+clarifications_count = to_num(args[i+19]) if len(args) > i+19 and args[i+19] else 0
+interventions_count = to_num(args[i+20]) if len(args) > i+20 and args[i+20] else 0
+reruns_count = to_num(args[i+21]) if len(args) > i+21 and args[i+21] else 0
+llm_input_tokens = to_num(args[i+22]) if len(args) > i+22 and args[i+22] else None
+llm_output_tokens = to_num(args[i+23]) if len(args) > i+23 and args[i+23] else None
+llm_total_tokens = to_num(args[i+24]) if len(args) > i+24 and args[i+24] else None
+llm_requests_count = to_num(args[i+25]) if len(args) > i+25 and args[i+25] else None
+llm_estimated_cost = to_num(args[i+26]) if len(args) > i+26 and args[i+26] else None
+llm_cost_currency = args[i+27] if len(args) > i+27 and args[i+27] else "USD"
+llm_usage_source = args[i+28] if len(args) > i+28 and args[i+28] in ["tool_reported", "operator_estimated", "unknown"] else "unknown"
+llm_model = args[i+29] if len(args) > i+29 else "Unknown"
+ai_run_report_path = args[i+30] if len(args) > i+30 else ""
+contract_artifact_path = args[i+31] if len(args) > i+31 else ""
+run_instructions_path = args[i+32] if len(args) > i+32 else ""
+acceptance_checklist_path = args[i+33] if len(args) > i+33 else ""
+run_number = int(args[i+34]) if len(args) > i+34 and args[i+34] else 1
+workspace_path = args[i+35] if len(args) > i+35 else ""
+ui_source_path = args[i+36] if len(args) > i+36 else ""
+ui_run_summary_path = args[i+37] if len(args) > i+37 else ""
+ui_build_success = args[i+38] if len(args) > i+38 else ""
+ui_start_timestamp = args[i+39] if len(args) > i+39 else ""
+ui_end_timestamp = args[i+40] if len(args) > i+40 else ""
+ui_duration_minutes = to_num(args[i+41]) if len(args) > i+41 and args[i+41] else None
+ui_llm_model = args[i+42] if len(args) > i+42 else "Unknown"
+ui_llm_input_tokens = to_num(args[i+43]) if len(args) > i+43 and args[i+43] else None
+ui_llm_output_tokens = to_num(args[i+44]) if len(args) > i+44 and args[i+44] else None
+ui_llm_total_tokens = to_num(args[i+45]) if len(args) > i+45 and args[i+45] else None
+ui_llm_requests_count = to_num(args[i+46]) if len(args) > i+46 and args[i+46] else None
+ui_llm_estimated_cost = to_num(args[i+47]) if len(args) > i+47 and args[i+47] else None
+ui_llm_cost_currency = args[i+48] if len(args) > i+48 and args[i+48] else "USD"
+ui_llm_usage_source = args[i+49] if len(args) > i+49 and args[i+49] in ["tool_reported", "operator_estimated", "unknown"] else "unknown"
+ui_clarifications_count = to_num(args[i+50]) if len(args) > i+50 and args[i+50] else 0
+ui_interventions_count = to_num(args[i+51]) if len(args) > i+51 and args[i+51] else 0
+ui_reruns_count = to_num(args[i+52]) if len(args) > i+52 and args[i+52] else 0
+ui_backend_changes_required = args[i+53].lower() == "true" if len(args) > i+53 and args[i+53] else False
+submitted_timestamp = args[i+54] if len(args) > i+54 else ""
+submitted_by = args[i+55] if len(args) > i+55 else ""
+submission_method = args[i+56] if len(args) > i+56 else "automated"
 
 # Parse test runs from AI run report
 test_runs = []
@@ -632,9 +665,9 @@ result = {
                     "start_timestamp": generation_started,
                     "end_timestamp": all_tests_pass or app_started or "",
                     "duration_minutes": total_minutes or 0,
-                    "clarifications_count": 0,
-                    "interventions_count": 0,
-                    "reruns_count": 0,
+                    "clarifications_count": clarifications_count or 0,
+                    "interventions_count": interventions_count or 0,
+                    "reruns_count": reruns_count or 0,
                     "test_runs": test_runs,
                     "test_iterations_count": test_iterations_count or (len(test_runs) if test_runs else None),
                     "llm_usage": llm_usage
@@ -674,9 +707,9 @@ if ui_source_path:
             "start_timestamp": ui_start_timestamp,
             "end_timestamp": ui_end_timestamp,
             "duration_minutes": ui_duration_minutes or 0,
-            "clarifications_count": ui_clarifications_count,
-            "interventions_count": ui_interventions_count,
-            "reruns_count": ui_reruns_count,
+            "clarifications_count": ui_clarifications_count or 0,
+            "interventions_count": ui_interventions_count or 0,
+            "reruns_count": ui_reruns_count or 0,
             "backend_changes_required": ui_backend_changes_required,
             "llm_usage": ui_llm_usage
         },
@@ -713,6 +746,9 @@ python3 "$TEMP_SCRIPT" \
     "${TEST_FAILED:-}" \
     "${TEST_PASS_RATE:-}" \
     "${TEST_ITERATIONS_COUNT:-}" \
+    "${CLARIFICATIONS_COUNT:-0}" \
+    "${INTERVENTIONS_COUNT:-0}" \
+    "${RERUNS_COUNT:-0}" \
     "${LLM_INPUT_TOKENS:-}" \
     "${LLM_OUTPUT_TOKENS:-}" \
     "${LLM_TOTAL_TOKENS:-}" \
@@ -741,9 +777,9 @@ python3 "$TEMP_SCRIPT" \
     "${UI_LLM_ESTIMATED_COST:-}" \
     "${UI_LLM_COST_CURRENCY:-USD}" \
     "${UI_LLM_USAGE_SOURCE:-unknown}" \
-    "${UI_CLARIFICATIONS_COUNT:-0}" \
-    "${UI_INTERVENTIONS_COUNT:-0}" \
-    "${UI_RERUNS_COUNT:-0}" \
+    "${UI_CLARIFICATIONS_COUNT:-}" \
+    "${UI_INTERVENTIONS_COUNT:-}" \
+    "${UI_RERUNS_COUNT:-}" \
     "${UI_BACKEND_CHANGES_REQUIRED:-false}" \
     "$SUBMITTED_TIMESTAMP" \
     "$SUBMITTED_BY" \

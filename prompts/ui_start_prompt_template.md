@@ -316,8 +316,35 @@ cd {Spec Root}
 
 This will generate a result file that includes both API and UI completion.
 
-#### 8.5.3 Validate and Submit
-Follow the same validation and submission steps as in the API prompt (section 8.5.3-8.5.5).
+#### 8.5.3 Submit Result File (Email Submission - Recommended)
+**For external developers (recommended method):**
+
+After generating/updating the result file, the operator should submit via email:
+
+```bash
+cd {Spec Root}
+./scripts/submit_result.sh {generated-filename}.json
+```
+
+This script will:
+- Validate the result file
+- Prompt for optional attribution (name/GitHub username)
+- Open email client with pre-filled content
+- Include JSON result data in email body (no attachment needed)
+
+**Email will be sent to**: `pawmate.ai.challenge@gmail.com` (or configured submission email)
+
+**Note**: The `submit_result.sh` script validates the file automatically, so separate validation is not required.
+
+#### 8.5.4 Alternative: Git-Based Submission (For Maintainers Only)
+**Only for maintainers with write access to the `pawmate-ai-results` repository:**
+
+If the operator has write access to the results repository, they may submit via pull request:
+1. Copy the result file to `pawmate-ai-results/results/submitted/`
+2. In the results repository, validate: `./scripts/validate_result.sh results/submitted/{filename}.json`
+3. Commit and create a pull request
+
+**Important**: External developers should use email submission (section 8.5.3), not git-based submission.
 
 **Note**: The UI run is typically part of the same benchmark run as the API. The result file should reflect the complete implementation (API + UI) when both are finished.
 
@@ -331,10 +358,11 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 **For the operator:**
 1. **Check your current LLM usage/billing status NOW** (before the UI run completes)
 2. After the run completes, check again to determine the usage for this run
-3. **Record the following metrics in the UI run summary**:
+3. **Record the following metrics in the UI run summary** at `{Workspace Path}/benchmark/ui_run_summary.md` under the "LLM Usage" section:
    - `ui_model_used`: Model name/version (e.g., "claude-sonnet-4.5", "gpt-4-turbo")
    - `ui_requests`: Total number of LLM API requests made for UI generation
    - `ui_tokens`: Total tokens used for UI generation (input + output combined)
+   - `usage_source`: `tool_reported` (if from tool), `operator_estimated` (if manually calculated), or `unknown` (if unavailable)
 
 **Tool-specific usage checking instructions:**
 - **Cursor**: Check Cursor Settings → Usage/Billing, or visit the Cursor dashboard/account page
@@ -348,14 +376,33 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 ```
 ⚠️  LLM USAGE TRACKING REQUIRED
 
-Before marking this UI run as complete, please record:
-- ui_model_used: [Model name/version]
-- ui_requests: [Number of LLM API requests for UI]
-- ui_tokens: [Total tokens used for UI]
+Before marking this UI run as complete, please:
+1. Check your LLM usage/billing status
+2. Record the following metrics in the UI run summary at {Workspace Path}/benchmark/ui_run_summary.md under the "LLM Usage" section:
+   - ui_model_used: [Model name/version]
+   - ui_requests: [Number of LLM API requests for UI]
+   - ui_tokens: [Total tokens used for UI]
+   - usage_source: tool_reported | operator_estimated | unknown
 
 Tool: [Detected tool name]
 Check usage at: [Tool-specific instructions based on detected tool]
 ```
+
+**Next steps for operator:**
+1. **Record LLM usage metrics** in `{Workspace Path}/benchmark/ui_run_summary.md` (see LLM Usage section above)
+2. **Generate/update result file** (includes both API and UI):
+   ```bash
+   cd {Spec Root}
+   ./scripts/generate_result_file.sh --run-dir {Workspace Path}/..
+   ```
+3. **Submit result file via email** (recommended):
+   ```bash
+   cd {Spec Root}
+   ./scripts/submit_result.sh {generated-filename}.json
+   ```
+   The submission script will validate the file and open your email client with pre-filled content.
+
+See `{Spec Root}/docs/Submitting_Results.md` for detailed submission instructions.
 
 ---
 

@@ -23,7 +23,8 @@ Choose your profile and create a run folder:
 ```
 
 This creates `runs/YYYYMMDDTHHmm/` with:
-- `start_build_api_prompt.txt` — the prompt to paste into your AI tool
+- `start_build_api_prompt.txt` — the prompt to paste into your AI tool to build the API/backend
+- `start_build_ui_prompt.txt` — the prompt to paste into your AI tool to build the UI (optional)
 - `run.config` — run metadata
 - `PawMate/` — workspace for the AI-generated implementation
 
@@ -34,7 +35,7 @@ This creates `runs/YYYYMMDDTHHmm/` with:
 3. Paste it as the first message
 4. **Wait for the AI to complete all work** (see section below)
 
-### 3. Monitor Progress and Send 'continue' If Needed
+### 3. Monitor Progress and Track Operator Interventions
 
 **CRITICAL FOR OPERATORS:**
 
@@ -53,6 +54,17 @@ continue
 - ✅ All benchmark artifacts are generated (contract, run instructions, acceptance checklist, AI run report)
 
 **Do NOT accept partial completion.** The specification requires the AI to work autonomously until 100% complete. If it stops prematurely, prompt it to continue.
+
+**Track Operator Interventions:**
+
+The benchmark measures how well the AI creates the entire application from the initial prompts without operator assistance. You must track and record:
+
+1. **Continuation prompts**: Count each time you send "continue" or similar messages because the AI stopped before completion
+2. **Error message prompts**: Count each time you provide error messages or feedback to help the AI fix issues
+3. **Clarifications**: Count each time the AI asks a question that requires your input
+4. **Manual interventions**: Count each time you manually edit code, config, or files (this should be zero for a valid benchmark)
+
+**Record these counts** in your run notes or in the AI run report. The result file generation script will include these metrics. **Ideal runs require zero operator interventions** — the AI should work autonomously from the initial prompts to completion.
 
 ### 4. Verify the Implementation
 
@@ -225,7 +237,8 @@ When running a benchmark, record the spec version tag in your `run.config` to en
 
 **What this does:**
 - Creates timestamped folder: `runs/20251226T1500/`
-- Generates `start_build_api_prompt.txt` with all parameters filled
+- Generates `start_build_api_prompt.txt` with all parameters filled (required)
+- Generates `start_build_ui_prompt.txt` with all parameters filled (optional — use after API is complete)
 - Creates workspace: `runs/20251226T1500/PawMate/`
 - Records run metadata in `run.config`
 
@@ -235,6 +248,7 @@ When running a benchmark, record the spec version tag in your `run.config` to en
 2. Copy **entire contents** of `start_build_api_prompt.txt`
 3. Paste as the first message
 4. **Do not interrupt** — let the AI work autonomously
+5. **Track interventions** — count each time you need to send "continue" or provide error feedback
 
 **Expected AI behavior:**
 - Records `generation_started` timestamp immediately
@@ -245,6 +259,14 @@ When running a benchmark, record the spec version tag in your `run.config` to en
 - Runs tests (iterates until all pass)
 - Generates all benchmark artifacts
 - Records completion timestamps
+
+**Optional: Build UI**
+
+After the API is complete, you can optionally build the UI:
+1. Open a **new agent session** (or continue in the same session)
+2. Copy **entire contents** of `start_build_ui_prompt.txt`
+3. Paste as the first message
+4. Track interventions as with the API build
 
 ### Step 3: Monitor and Continue If Needed
 
@@ -274,6 +296,12 @@ continue
 
 **Keep sending `continue` until the AI completes all work.** Do not manually edit code or fix errors — this corrupts the benchmark.
 
+**Record intervention counts** for the result file:
+- Number of "continue" prompts sent
+- Number of error messages or feedback provided
+- Number of clarifications answered
+- Number of manual code edits (should be 0)
+
 ### Step 4: Verify Implementation
 
 ```bash
@@ -300,7 +328,13 @@ open http://localhost:3000
 ./scripts/generate_result_file.sh --run-dir runs/20251226T1500
 ```
 
-This extracts metrics from the AI run report and creates a standardized result file.
+This extracts metrics from the AI run report and creates a standardized result file. **Before generating**, ensure you've recorded:
+- Number of continuation prompts sent
+- Number of error messages/feedback provided
+- Number of clarifications answered
+- Number of manual interventions (code edits, config changes, etc.)
+
+The result file includes these metrics to measure how autonomously the AI completed the work from the initial prompts.
 
 ### Step 6: Validate and Submit (Optional)
 
@@ -333,7 +367,8 @@ pawmate-ai-challenge/
 ├── runs/                      # Generated run folders (timestamped)
 │   └── 20251226T1500/        # Example run folder
 │       ├── run.config        # Run metadata
-│       ├── start_build_api_prompt.txt  # Generated prompt
+│       ├── start_build_api_prompt.txt  # Generated API prompt (required)
+│       ├── start_build_ui_prompt.txt  # Generated UI prompt (optional)
 │       └── PawMate/          # AI-generated implementation workspace
 └── SPEC_VERSION              # Current specification version
 ```
