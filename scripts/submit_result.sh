@@ -42,15 +42,15 @@ load_submission_email() {
     if [[ -f "$CONFIG_FILE" ]]; then
         if grep -q "^SUBMISSION_EMAIL=" "$CONFIG_FILE"; then
             email=$(grep "^SUBMISSION_EMAIL=" "$CONFIG_FILE" | cut -d'=' -f2)
-            print_info "Using submission email from .submission.config: $email"
+            print_info "Using submission email from .submission.config: $email" >&2
         fi
     else
         # Create config from template if it doesn't exist
         if [[ -f "$CONFIG_TEMPLATE" ]]; then
             cp "$CONFIG_TEMPLATE" "$CONFIG_FILE"
-            print_info "Created .submission.config from template"
+            print_info "Created .submission.config from template" >&2
         fi
-        print_info "Using default submission email: $email"
+        print_info "Using default submission email: $email" >&2
     fi
     
     echo "$email"
@@ -140,12 +140,12 @@ validate_result_file() {
 
 # Function to prompt for attribution
 prompt_attribution() {
-    echo ""
-    print_info "Attribution (optional)"
-    echo "You can provide your name or GitHub username to be credited for this submission."
-    echo "Press Enter to submit anonymously."
-    echo ""
-    read -p "Your name or GitHub username: " attribution
+    echo "" >&2
+    print_info "Attribution (optional)" >&2
+    echo "You can provide your name or GitHub username to be credited for this submission." >&2
+    echo "Press Enter to submit anonymously." >&2
+    echo "" >&2
+    read -p "Your name or GitHub username: " attribution >&2
     echo "$attribution"
 }
 
