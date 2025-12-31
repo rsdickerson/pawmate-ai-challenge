@@ -163,28 +163,27 @@ generate_email_body() {
     local attribution="$2"
     local filename=$(basename "$file")
     
+    # Read the JSON file content
+    local json_content=$(cat "$file")
+    
     local body="PawMate AI Challenge - Benchmark Result Submission
 
-Result File: $filename
-Submission Time: $(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-"
-    
-    if [[ -n "$attribution" ]]; then
-        body+="Submitted By: $attribution
-"
-    else
-        body+="Submitted By: Anonymous
-"
-    fi
-    
-    body+"
+Submitted by: ${attribution:-Anonymous}
+Tool: $(extract_json_field "$file" "['result_data']['run_identity']['tool_name']") $(extract_json_field "$file" "['result_data']['run_identity']['tool_version']")
+Model: $(extract_json_field "$file" "['result_data']['run_identity']['target_model']")
+API Style: $(extract_json_field "$file" "['result_data']['run_identity']['api_style']")
+Run Number: $(extract_json_field "$file" "['result_data']['run_identity']['run_number']")
+Timestamp: $(echo "$filename" | sed 's/.*_\([0-9]\{8\}T[0-9]\{4\}\)\.json$/\1/')
+Spec Version: $(extract_json_field "$file" "['result_data']['run_identity']['spec_reference']")
+
+Result Data (JSON):
 ---
 
-Please attach the file: $file
+$json_content
 
-This result was generated using the PawMate AI Challenge benchmarking harness.
-Repository: https://github.com/rsdickerson/pawmate-ai-challenge
+---
 
+Generated using: https://github.com/rsdickerson/pawmate-ai-challenge
 "
     
     echo "$body"
@@ -226,6 +225,7 @@ display_manual_instructions() {
     local email="$1"
     local subject="$2"
     local file="$3"
+    local body="$4"
     
     echo ""
     echo "============================================================"
@@ -237,12 +237,13 @@ display_manual_instructions() {
     echo "2. Use this subject line:"
     echo "   ${BLUE}$subject${NC}"
     echo ""
-    echo "3. Attach this file:"
-    echo "   ${BLUE}$file${NC}"
+    echo "3. Copy and paste this email body:"
     echo ""
-    echo "4. Optional: Add any comments about your benchmark run in the email body"
+    echo "---"
+    echo "$body"
+    echo "---"
     echo ""
-    echo "5. Send the email"
+    echo "4. Send the email (no attachment needed - JSON is in the body)"
     echo ""
     echo "============================================================"
 }
@@ -299,13 +300,13 @@ main() {
     if open_email_client "$submission_email" "$subject" "$body"; then
         print_success "Email client opened"
         echo ""
-        print_warning "IMPORTANT: Don't forget to attach the result file to the email!"
+        print_info "The result JSON has been included in the email body."
         echo ""
-        echo "File to attach: ${BLUE}$result_file${NC}"
+        print_info "Review the email and send when ready."
         echo ""
     else
         print_warning "Could not automatically open email client"
-        display_manual_instructions "$submission_email" "$subject" "$result_file"
+        display_manual_instructions "$submission_email" "$subject" "$result_file" "$body"
     fi
     
     echo ""

@@ -252,8 +252,6 @@ cd "$REPO_ROOT"
 This will create a standardized result file (defaults to current directory) with a name like:
 \`${TOOL_SLUG}_model${model}_${api_type}_run${RUN_NUMBER}_${TIMESTAMP}.json\`
 
-**Note**: Copy the generated file to \`pawmate-ai-results/results/submitted/\` for processing.
-
 ### Step 2: Verify Automated Metrics
 The generation script extracts metrics from your run summary files:
 
@@ -288,38 +286,25 @@ cat {generated-filename}.json | jq '.build_status'
 cat {generated-filename}.json | jq '.llm_usage'
 \`\`\`
 
-### Step 4: Copy to Results Repository
-Copy the generated result file to the results repository:
+### Step 4: Submit via Email
+Submit your result file via email using the submission script:
 
 \`\`\`bash
-cp {generated-filename}.json /path/to/pawmate-ai-results/results/submitted/
+cd "$REPO_ROOT"
+./scripts/submit_result.sh {generated-filename}.json
 \`\`\`
 
-### Step 5: Validate Result File
-Before submitting, validate the result file (in the results repository):
+The submission script will:
+- Validate your result file
+- Prompt for optional attribution (name/GitHub username)
+- Include the JSON result data in the email body (no attachment needed)
+- Open your email client with pre-filled content
 
-\`\`\`bash
-cd /path/to/pawmate-ai-results
-./scripts/validate_result.sh results/submitted/{generated-filename}.json
-\`\`\`
+**Important**: The JSON result data is included directly in the email body. No file attachment is needed. Just review the email and send it.
 
-Fix any validation errors before proceeding.
+**Email will be sent to**: \`pawmate.ai.challenge@gmail.com\` (or configured submission email)
 
-### Step 6: Submit via Git
-Once validation passes (in the results repository):
-
-\`\`\`bash
-cd /path/to/pawmate-ai-results
-# Add the result file
-git add results/submitted/{generated-filename}.json
-
-# Commit
-git commit -m "Add benchmark result: ${TOOL} Model ${model} ${api_type} Run ${RUN_NUMBER}"
-
-# Push and create pull request
-git push origin HEAD
-# Then create a PR on GitHub
-\`\`\`
+**Note**: External developers should submit via email only. Do NOT commit result files to the \`pawmate-ai-challenge\` repository.
 
 ## Key Metrics Tracked
 

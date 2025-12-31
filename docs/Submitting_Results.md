@@ -15,6 +15,7 @@ The easiest way to submit your benchmark results:
 The submission script will:
 - Validate your result file
 - Prompt for optional attribution (name/GitHub username)
+- Include the JSON result data in the email body (no attachment needed)
 - Open your email client with pre-filled content
 - Provide manual instructions if automatic email fails
 
@@ -78,14 +79,14 @@ The script will:
 3. **Open your email client**:
    - Pre-filled email with subject and body
    - Includes submission metadata
-   - **Important**: You must manually attach the result file
+   - **JSON result data is included in the email body** (no attachment needed)
    
 4. **Fallback instructions**:
    - If email client doesn't open automatically
    - Clear manual instructions are displayed
-   - Copy-paste friendly format
+   - Copy-paste friendly format with full email body
 
-**Important**: The script opens your email client but cannot attach the file automatically. You must attach the result file manually before sending.
+**Important**: The JSON result data is included directly in the email body. No file attachment is needed.
 
 ### Step 3 (Alternative): Manual Email Submission
 
@@ -93,8 +94,10 @@ If you prefer not to use the script, you can submit manually:
 
 1. **Email to**: `pawmate.ai.challenge@gmail.com` (or the configured submission email)
 2. **Subject**: `[PawMate Result] {your-filename-without-.json}`
-3. **Attach**: Your result JSON file
+3. **Body**: Copy the entire contents of your result JSON file into the email body
 4. **Optional**: Include your name/GitHub username in the email body
+
+**Note**: Include the JSON directly in the email body - no file attachment is needed.
 
 ### Step 4: Confirmation
 
@@ -315,8 +318,9 @@ If you cannot determine a metric value:
 
 **Error: "Email client could not be opened"**
 - Use the manual instructions displayed by the script
-- Email address, subject, and file path are shown clearly
-- Compose email manually in your preferred email application
+- Email address, subject, and full email body (with JSON) are shown clearly
+- Copy and paste the email body into your email application
+- No file attachment needed - JSON is in the body
 
 **Script validation fails**
 - Review the validation errors displayed
