@@ -606,7 +606,7 @@ Check usage at: [Tool-specific instructions based on detected tool]
    cd {Spec Root}
    ./scripts/submit_result.sh {generated-filename}.json
    ```
-   The submission script will validate the file and open your email client with pre-filled content.
+   **Note**: The script will open your email client with pre-filled content. You must manually click "Send" to submit the email.
 
 See `{Spec Root}/docs/Submitting_Results.md` for detailed submission instructions.
 
@@ -654,8 +654,12 @@ cd {Spec Root}
 This script will:
 - Validate the result file
 - Prompt for optional attribution (name/GitHub username)
-- Open email client with pre-filled content
+- Open your email client with pre-filled content (To, Subject, Body)
 - Include JSON result data in email body (no attachment needed)
+
+**IMPORTANT**: The script opens your email client but does NOT send the email automatically. You must:
+1. Review the pre-filled email in your email client
+2. Click "Send" to submit the result
 
 **Email will be sent to**: `pawmate.ai.challenge@gmail.com` (or configured submission email)
 
