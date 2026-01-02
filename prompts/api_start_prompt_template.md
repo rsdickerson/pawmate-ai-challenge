@@ -50,9 +50,10 @@ This run MUST be treated as fully independent:
 - **Write ALL generated files to:** the **Workspace Path** (all code, configs, artifacts, and outputs MUST be created inside this folder)
 
 **CRITICAL — Workspace layout:**
-- Place backend/API code under: `{Workspace Path}/backend/`
+- Place backend/API code under: `{Workspace Path}/backend/` (including contract artifact: `schema.graphql` for GraphQL in `backend/src/` or `openapi.yaml` for REST in `backend/`)
 - Reserve `{Workspace Path}/ui/` for UI (generated separately via the UI start prompt)
-- Place benchmark artifacts under: `{Workspace Path}/benchmark/`
+- Place benchmark artifacts under: `{Workspace Path}/../benchmark/` (benchmark folder is at run level, sibling of PawMate folder)
+  - **Note**: Contract artifacts (schema.graphql, openapi.yaml) are part of the application code and should NOT be duplicated in the benchmark folder
 
 You MUST work strictly within scope and MUST NOT invent requirements. If something is ambiguous, you MUST record the smallest compliant assumption as an explicit `ASM-####` and proceed.
 
@@ -272,8 +273,10 @@ Your deliverable MUST include all of the following:
 
 #### 4.2 API Contract Artifact (`docs/API_Contract.md` compliant) (MUST)
 Produce exactly one contract artifact based on the selected API style:
-- If **REST**: OpenAPI (or equivalent machine-readable REST contract) that satisfies `docs/API_Contract.md`.
-- If **GraphQL**: GraphQL schema that satisfies `docs/API_Contract.md`.
+- If **REST**: OpenAPI (or equivalent machine-readable REST contract) that satisfies `docs/API_Contract.md`. Place it in `{Workspace Path}/backend/` (e.g., `openapi.yaml`).
+- If **GraphQL**: GraphQL schema that satisfies `docs/API_Contract.md`. Place it in `{Workspace Path}/backend/src/` (e.g., `schema.graphql`).
+
+**IMPORTANT**: The contract artifact is part of the application code and should be placed in the backend directory where it's used. Do NOT duplicate it in the benchmark folder.
 
 The contract artifact MUST explicitly define:
 - operations required for the selected model (animals, lifecycle transitions, applications/evaluation/decision, history; plus Model B deltas if selected)
@@ -412,10 +415,22 @@ You MUST produce operator-ready artifacts aligned to `docs/Benchmarking_Method.m
 - Evidence pointers for determinism checks and contract completeness checks
 
 #### 4.8 AI Run Report (MUST)
-You MUST produce a single comparison-ready document at `{Workspace Path}/benchmark/ai_run_report.md` that includes:
-- **Run configuration**: Copy of the run.config contents (from `{Workspace Path}/../run.config`)
-- **Tech stack**: Backend language/framework, database, and any key libraries used
-- **Timestamps** (**ISO-8601 UTC with milliseconds**, e.g. `2025-12-17T22:59:33.123Z`) recorded at these checkpoints:
+You MUST produce a single comparison-ready document at `{Workspace Path}/../benchmark/ai_run_report.md` with sections in this order:
+
+1. **Next Steps** (MUST be first section): Action items for operator and AI (if continuing)
+   - For Operator: Review failing tests, check LLM usage, investigate issues
+   - For AI (if continuing): Debug steps, investigation tasks
+   
+2. **LLM Usage** (MUST be second section, operator must record):
+   - `backend_model_used`: Model name/version used (e.g., "claude-sonnet-4.5", "gpt-4-turbo")
+   - `backend_requests`: Total number of LLM API requests made
+   - `backend_tokens`: Total tokens used (input + output combined)
+   - `usage_source`: Source of data (`tool_reported`, `operator_estimated`, or `unknown`)
+   - *Optional*: `estimated_cost_usd`, `input_tokens`, `output_tokens` if available separately
+
+3. **Run configuration**: Copy of the run.config contents (from `{Workspace Path}/../run.config`)
+4. **Tech stack**: Backend language/framework, database, and any key libraries used
+5. **Timestamps** (**ISO-8601 UTC with milliseconds**, e.g. `2025-12-17T22:59:33.123Z`) recorded at these checkpoints:
   - `generation_started`: When you began generating code
   - `code_complete`: When all code files have been written
   - `build_clean`: When the build succeeds with no errors
@@ -430,13 +445,10 @@ You MUST produce a single comparison-ready document at `{Workspace Path}/benchma
   - `all_tests_pass`: When all tests pass (timestamp of final successful test run)
 - **Test summary**: Total tests, passed, failed, and final pass rate (from the last test run)
 - **Test iterations**: Count of how many times tests were run before all passed
-- **LLM Usage** (operator must record):
-  - `backend_model_used`: Model name/version used (e.g., "claude-sonnet-4.5", "gpt-4-turbo")
-  - `backend_requests`: Total number of LLM API requests made
-  - `backend_tokens`: Total tokens used (input + output combined)
-  - `usage_source`: Source of data (`tool_reported`, `operator_estimated`, or `unknown`)
-  - *Optional*: `estimated_cost_usd`, `input_tokens`, `output_tokens` if available separately
 - **Artifact paths**: Paths to contract, run instructions, acceptance checklist, and evidence folders
+- **Assumptions**: List of all `ASM-*` assumptions made during implementation
+- **Implementation Notes**: Key implementation decisions and patterns used
+- **Known Issues**: Any known problems or limitations
 
 This report enables direct comparison between different AI tool runs.
 
@@ -489,7 +501,7 @@ After generating all code, you MUST execute the following loop-until-green workf
 
 **CRITICAL:** You MUST execute all commands using `run_terminal_cmd` (or your tool's equivalent terminal command execution capability). Do NOT create shell scripts or expect manual execution. The workflow MUST be fully autonomous.
 
-Update `benchmark/acceptance_checklist.md` to mark each `AC-*` item as passing once verified by tests.
+Update `{Workspace Path}/../benchmark/acceptance_checklist.md` to mark each `AC-*` item as passing once verified by tests.
 
 #### 5.5 Stop Server After Testing
 After all tests pass and the `all_tests_pass` timestamp is recorded:
@@ -502,7 +514,7 @@ After all tests pass and the `all_tests_pass` timestamp is recorded:
 ---
 
 ### 6) Run Instructions Requirements (Non-interactive) (MUST)
-Provide a single "Run Instructions" section at `{Workspace Path}/benchmark/run_instructions.md` that includes:
+Provide a single "Run Instructions" section at `{Workspace Path}/../benchmark/run_instructions.md` that includes:
 - prerequisites (runtime versions if needed)
 - install/build commands (non-interactive; no prompts)
 - start commands (API) with two distinct subsections:
@@ -534,11 +546,11 @@ At completion, output a final "Run Summary" with:
 - Selected Target Model and API Style
 - List of all assumptions (`ASM-*`)
 - Paths to:
-  - contract artifact
-  - run instructions
-  - AI run report (`benchmark/ai_run_report.md`)
+  - contract artifact (in application code: `{Workspace Path}/backend/src/schema.graphql` for GraphQL or `{Workspace Path}/backend/openapi.yaml` for REST)
+  - run instructions (`{Workspace Path}/../benchmark/run_instructions.md`)
+  - AI run report (`{Workspace Path}/../benchmark/ai_run_report.md`)
   - reset-to-seed mechanism
-  - acceptance checklist / evidence
+  - acceptance checklist / evidence (`{Workspace Path}/../benchmark/acceptance_checklist.md`)
   - automated tests
   - run folder bundle contents (artifacts required by `docs/Benchmarking_Method.md`)
 
@@ -564,7 +576,7 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 **For the operator:**
 1. **Check your current LLM usage/billing status NOW** (before the run completes)
 2. After the run completes, check again to determine the usage for this run
-3. **Record the following metrics in the AI run report** at `{Workspace Path}/benchmark/ai_run_report.md` under the "LLM Usage" section:
+3. **Record the following metrics in the AI run report** at `{Workspace Path}/../benchmark/ai_run_report.md` under the "LLM Usage" section:
    - `backend_model_used`: Model name/version (e.g., "claude-sonnet-4.5", "gpt-4-turbo")
    - `backend_requests`: Total number of LLM API requests made
    - `backend_tokens`: Total tokens used (input + output combined)
@@ -584,7 +596,7 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 
 Before marking this backend run as complete, please:
 1. Check your LLM usage/billing status
-2. Record the following metrics in the AI run report at {Workspace Path}/benchmark/ai_run_report.md under the "LLM Usage" section:
+2. Record the following metrics in the AI run report at {Workspace Path}/../benchmark/ai_run_report.md under the "LLM Usage" section:
    - backend_model_used: [Model name/version]
    - backend_requests: [Number of LLM API requests]
    - backend_tokens: [Total tokens used]
@@ -595,20 +607,22 @@ Check usage at: [Tool-specific instructions based on detected tool]
 ```
 
 **Next steps for operator:**
-1. **Record LLM usage metrics** in `{Workspace Path}/benchmark/ai_run_report.md` (see LLM Usage section above)
+1. **Record LLM usage metrics** in `{Workspace Path}/../benchmark/ai_run_report.md` (see LLM Usage section above)
 2. **Generate result file**:
    ```bash
    cd {Spec Root}
    ./scripts/generate_result_file.sh --run-dir {Workspace Path}/..
    ```
+   **Note**: The result file will be generated in `{Workspace Path}/../benchmark/` folder (benchmark folder is at run level, sibling of PawMate folder).
 3. **Submit result file via email** (recommended):
    ```bash
    cd {Spec Root}
-   ./scripts/submit_result.sh {generated-filename}.json
+   ./scripts/submit_result.sh {Workspace Path}/../benchmark/{generated-filename}.json
    ```
    **Note**: The script will open your email client with pre-filled content. You must manually click "Send" to submit the email.
+4. **Follow submission instructions**: See `{Workspace Path}/../benchmark/result_submission_instructions.md` for detailed submission instructions.
 
-See `{Spec Root}/docs/Submitting_Results.md` for detailed submission instructions.
+See `{Spec Root}/docs/Submitting_Results.md` for additional guidance.
 
 ---
 
@@ -628,7 +642,7 @@ This script will:
 - Generate a standardized result file in the current directory
 - Display the path to the generated file and next steps for submission
 
-**Note**: The result file is generated in the challenge repository root. The operator will submit it via email (see section 8.5.3).
+**Note**: The result file is generated in the `benchmark/` folder at the run level (sibling of `PawMate/` folder). The operator will submit it via email (see section 8.5.3).
 
 #### 8.5.2 Complete Result File
 The generated result file will contain placeholders for metrics that must be manually completed. You MUST:
@@ -648,8 +662,10 @@ After generating the result file, the operator should submit via email:
 
 ```bash
 cd {Spec Root}
-./scripts/submit_result.sh {generated-filename}.json
+./scripts/submit_result.sh {Workspace Path}/benchmark/{generated-filename}.json
 ```
+
+**Note**: The result file is located in `{Workspace Path}/benchmark/` folder. All benchmark-related files (result files, AI run reports, submission instructions) are stored in the benchmark folder.
 
 This script will:
 - Validate the result file

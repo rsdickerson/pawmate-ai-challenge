@@ -2,13 +2,15 @@
 set -e
 
 # Submit Result Script
-# Validates and submits a benchmark result file via email
+# Validates and submits a benchmark result file via GitHub Issue
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIG_FILE="$REPO_ROOT/.submission.config"
 CONFIG_TEMPLATE="$REPO_ROOT/.submission.config.template"
-DEFAULT_EMAIL="pawmate.ai.challenge@gmail.com"
+GITHUB_REPO_OWNER="rsdickerson"
+GITHUB_REPO_NAME="pawmate-ai-results"
+GITHUB_API_URL="https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/issues"
 
 # Colors for output
 RED='\033[0;31m'
@@ -34,26 +36,43 @@ print_info() {
     echo -e "${BLUE}ℹ $1${NC}"
 }
 
-# Function to load submission email from config
-load_submission_email() {
-    local email="$DEFAULT_EMAIL"
+# Function to load GitHub token from config or environment
+load_github_token() {
+    local token=""
     
-    # Try to load from .submission.config
+    # Try to load from .submission.config first (priority)
     if [[ -f "$CONFIG_FILE" ]]; then
-        if grep -q "^SUBMISSION_EMAIL=" "$CONFIG_FILE"; then
-            email=$(grep "^SUBMISSION_EMAIL=" "$CONFIG_FILE" | cut -d'=' -f2)
-            print_info "Using submission email from .submission.config: $email" >&2
+        if grep -q "^GITHUB_TOKEN=" "$CONFIG_FILE"; then
+            token=$(grep "^GITHUB_TOKEN=" "$CONFIG_FILE" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
-    else
-        # Create config from template if it doesn't exist
-        if [[ -f "$CONFIG_TEMPLATE" ]]; then
-            cp "$CONFIG_TEMPLATE" "$CONFIG_FILE"
-            print_info "Created .submission.config from template" >&2
-        fi
-        print_info "Using default submission email: $email" >&2
     fi
     
-    echo "$email"
+    # Fall back to environment variable if config file didn't provide a token
+    if [[ -z "$token" ]] && [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        token=$(echo "${GITHUB_TOKEN}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    fi
+    
+    # Return token (may be empty)
+    echo "$token"
+}
+
+# Function to validate GitHub token format (basic checks)
+validate_github_token() {
+    local token="$1"
+    
+    # Check if token is empty
+    if [[ -z "$token" ]]; then
+        return 1
+    fi
+    
+    # Basic format check: GitHub personal access tokens are typically 40+ characters
+    # Classic tokens: 40 chars, fine-grained tokens: variable length
+    # At minimum, check it's not obviously invalid (too short)
+    if [[ ${#token} -lt 20 ]]; then
+        return 1
+    fi
+    
+    return 0
 }
 
 # Function to validate JSON format
@@ -149,37 +168,37 @@ prompt_attribution() {
     echo "$attribution"
 }
 
-# Function to generate email subject
-generate_email_subject() {
-    local filename="$1"
-    # Extract components from filename for subject
-    local basename=$(basename "$filename" .json)
-    echo "[PawMate Result] $basename"
+# Function to generate GitHub Issue title
+generate_issue_title() {
+    local file="$1"
+    local tool_name=$(extract_json_field "$file" "['result_data']['run_identity']['tool_name']")
+    local target_model=$(extract_json_field "$file" "['result_data']['run_identity']['target_model']")
+    local api_style=$(extract_json_field "$file" "['result_data']['run_identity']['api_style']")
+    local run_number=$(extract_json_field "$file" "['result_data']['run_identity']['run_number']")
+    
+    # Format: [Submission] Tool: {tool_name}, Model: {target_model}, API: {api_style}, Run: {run_number}
+    echo "[Submission] Tool: ${tool_name}, Model: ${target_model}, API: ${api_style}, Run: ${run_number}"
 }
 
-# Function to generate email body
-generate_email_body() {
+# Function to generate GitHub Issue body
+generate_issue_body() {
     local file="$1"
     local attribution="$2"
-    local filename=$(basename "$file")
     
     # Read the JSON file content
     local json_content=$(cat "$file")
     
-    local body="PawMate AI Challenge - Benchmark Result Submission
+    # Format the body to include JSON in a way compatible with the template's textarea field
+    # The template expects the JSON in the result_json textarea field
+    local body="## PawMate AI Challenge Result Submission
 
 Submitted by: ${attribution:-Anonymous}
-Tool: $(extract_json_field "$file" "['result_data']['run_identity']['tool_name']") $(extract_json_field "$file" "['result_data']['run_identity']['tool_version']")
-Model: $(extract_json_field "$file" "['result_data']['run_identity']['target_model']")
-API Style: $(extract_json_field "$file" "['result_data']['run_identity']['api_style']")
-Run Number: $(extract_json_field "$file" "['result_data']['run_identity']['run_number']")
-Timestamp: $(echo "$filename" | sed 's/.*_\([0-9]\{8\}T[0-9]\{4\}\)\.json$/\1/')
-Spec Version: $(extract_json_field "$file" "['result_data']['run_identity']['spec_reference']")
 
-Result Data (JSON):
----
+### Result JSON
 
-$json_content
+\`\`\`json
+${json_content}
+\`\`\`
 
 ---
 
@@ -189,63 +208,133 @@ Generated using: https://github.com/rsdickerson/pawmate-ai-challenge
     echo "$body"
 }
 
-# Function to open email client
-open_email_client() {
-    local email="$1"
-    local subject="$2"
-    local body="$3"
+# Function to create GitHub Issue via API
+create_github_issue() {
+    local file="$1"
+    local attribution="$2"
+    local token="$3"
     
-    # URL-encode the subject and body
-    local encoded_subject=$(echo "$subject" | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip()))")
-    local encoded_body=$(echo "$body" | python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.stdin.read()))")
+    # Generate issue title
+    local title=$(generate_issue_title "$file")
     
-    local mailto_url="mailto:${email}?subject=${encoded_subject}&body=${encoded_body}"
+    # Read JSON content from file
+    local json_content=$(cat "$file")
     
-    print_info "Opening email client..."
+    # Create temporary file for payload to avoid shell escaping issues
+    local payload_file=$(mktemp)
     
-    # Try to open email client (cross-platform)
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        open "$mailto_url" 2>/dev/null
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Linux
-        xdg-open "$mailto_url" 2>/dev/null || sensible-browser "$mailto_url" 2>/dev/null
-    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        # Windows (Git Bash or Cygwin)
-        start "$mailto_url" 2>/dev/null
-    else
-        return 1
-    fi
+    # Generate payload using Python to properly escape JSON
+    # Use environment variables to pass data to Python
+    export PYTHON_TITLE="$title"
+    export PYTHON_ATTRIBUTION="${attribution:-Anonymous}"
+    export PYTHON_JSON_CONTENT="$json_content"
     
-    return 0
+    python3 <<'PYTHON_EOF' > "$payload_file"
+import json
+import os
+
+title = os.environ.get('PYTHON_TITLE', '')
+attribution = os.environ.get('PYTHON_ATTRIBUTION', 'Anonymous')
+json_content = os.environ.get('PYTHON_JSON_CONTENT', '')
+
+# Format body with JSON code block
+formatted_body = f"""## PawMate AI Challenge Result Submission
+
+Submitted by: {attribution}
+
+### Result JSON
+
+```json
+{json_content}
+```
+
+---
+
+Generated using: https://github.com/rsdickerson/pawmate-ai-challenge
+"""
+
+payload = {
+    "title": title,
+    "body": formatted_body,
+    "labels": ["submission", "results"]
 }
 
-# Function to display manual instructions
-display_manual_instructions() {
-    local email="$1"
-    local subject="$2"
-    local file="$3"
-    local body="$4"
+print(json.dumps(payload))
+PYTHON_EOF
     
-    echo ""
-    echo "============================================================"
-    print_info "MANUAL SUBMISSION INSTRUCTIONS"
-    echo "============================================================"
-    echo ""
-    echo "1. Create a new email to: ${BLUE}$email${NC}"
-    echo ""
-    echo "2. Use this subject line:"
-    echo "   ${BLUE}$subject${NC}"
-    echo ""
-    echo "3. Copy and paste this email body:"
-    echo ""
-    echo "---"
-    echo "$body"
-    echo "---"
-    echo ""
-    echo "4. Send the email (no attachment needed - JSON is in the body)"
-    echo ""
-    echo "============================================================"
+    # Clean up environment variables
+    unset PYTHON_TITLE
+    unset PYTHON_ATTRIBUTION
+    unset PYTHON_JSON_CONTENT
+    
+    # Prepare curl command
+    local curl_cmd="curl -s -w '\n%{http_code}' -X POST"
+    curl_cmd="$curl_cmd -H 'Accept: application/vnd.github.v3+json'"
+    curl_cmd="$curl_cmd -H 'Content-Type: application/json'"
+    
+    # Add authentication header (token should always be present due to validation, but check anyway)
+    if [[ -z "$token" ]]; then
+        print_error "Internal error: Token is empty in create_github_issue()"
+        return 1
+    fi
+    curl_cmd="$curl_cmd -H 'Authorization: token $token'"
+    
+    curl_cmd="$curl_cmd -d @$payload_file"
+    curl_cmd="$curl_cmd '$GITHUB_API_URL'"
+    
+    # Execute curl and capture response
+    local response=$(eval "$curl_cmd" 2>&1)
+    local http_code=$(echo "$response" | tail -n1)
+    local response_body=$(echo "$response" | sed '$d')
+    
+    # Clean up temporary file
+    rm -f "$payload_file"
+    
+    # Check HTTP status code
+    if [[ "$http_code" == "201" ]]; then
+        # Success - parse issue URL and number from response
+        local issue_url=$(echo "$response_body" | python3 -c "import json, sys; data=json.load(sys.stdin); print(data.get('html_url', ''))" 2>/dev/null)
+        local issue_number=$(echo "$response_body" | python3 -c "import json, sys; data=json.load(sys.stdin); print(data.get('number', ''))" 2>/dev/null)
+        
+        if [[ -n "$issue_url" ]]; then
+            echo "$issue_url|$issue_number"
+            return 0
+        else
+            print_error "Issue created but could not parse response"
+            return 1
+        fi
+    else
+        # Error - parse and display error message
+        local error_message=$(echo "$response_body" | python3 -c "import json, sys; data=json.load(sys.stdin); print(data.get('message', 'Unknown error'))" 2>/dev/null || echo "Unknown error")
+        local error_details=$(echo "$response_body" | python3 -c "import json, sys; data=json.load(sys.stdin); errors=data.get('errors', []); print('; '.join([e.get('message', '') for e in errors]))" 2>/dev/null || echo "")
+        
+        print_error "GitHub API request failed (HTTP $http_code)"
+        print_error "Error: $error_message"
+        if [[ -n "$error_details" ]]; then
+            print_error "Details: $error_details"
+        fi
+        
+        # Provide specific guidance based on error
+        if [[ "$http_code" == "401" ]] || [[ "$http_code" == "403" ]]; then
+            echo "" >&2
+            print_warning "Authentication failed. Please check your GitHub token."
+            print_info "Set GITHUB_TOKEN environment variable or add GITHUB_TOKEN=your-token to .submission.config"
+        elif [[ "$http_code" == "404" ]]; then
+            echo "" >&2
+            print_warning "Repository not found: ${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}"
+            print_info "Please verify the repository exists and is accessible"
+        elif [[ "$http_code" == "422" ]]; then
+            echo "" >&2
+            print_warning "Validation error. The issue data may be invalid."
+            print_info "Check that all required fields are present in the result file"
+        elif [[ "$http_code" == "000" ]] || [[ -z "$http_code" ]]; then
+            echo "" >&2
+            print_warning "Network error. Could not connect to GitHub API."
+            print_info "Please check your internet connection and try again"
+        fi
+        
+        return 1
+    fi
 }
 
 # Main script
@@ -263,6 +352,15 @@ main() {
         echo ""
         echo "Example:"
         echo "  $0 cursor_modelA_REST_run1_20241218T1430.json"
+        echo ""
+        echo "This script will:"
+        echo "  - Validate your result file"
+        echo "  - Prompt for optional attribution (name/GitHub username)"
+        echo "  - Create a GitHub Issue in ${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}"
+        echo "  - Include the JSON result data in the issue body"
+        echo ""
+        echo "GitHub Token:"
+        echo "  Set GITHUB_TOKEN environment variable or add GITHUB_TOKEN=your-token to .submission.config"
         echo ""
         exit 1
     fi
@@ -285,33 +383,63 @@ main() {
     # Prompt for attribution
     local attribution=$(prompt_attribution)
     
-    # Load submission email
-    local submission_email=$(load_submission_email)
+    # Load and validate GitHub token before attempting API calls
+    local github_token=$(load_github_token)
     
-    # Generate email content
-    local subject=$(generate_email_subject "$result_file")
-    local body=$(generate_email_body "$result_file" "$attribution")
-    
-    echo ""
-    print_success "Result file is ready to submit!"
-    echo ""
-    
-    # Try to open email client
-    if open_email_client "$submission_email" "$subject" "$body"; then
-        print_success "Email client opened"
+    if ! validate_github_token "$github_token"; then
+        print_error "GitHub authentication token is required"
         echo ""
-        print_info "The result JSON has been included in the email body."
+        print_info "This script uses the GitHub API to create issues programmatically."
+        print_info "A GitHub personal access token is required for authentication."
         echo ""
-        print_info "Review the email and send when ready."
+        print_info "How to create a GitHub personal access token:"
         echo ""
-    else
-        print_warning "Could not automatically open email client"
-        display_manual_instructions "$submission_email" "$subject" "$result_file" "$body"
+        echo "  1. Go to: https://github.com/settings/tokens"
+        echo "  2. Click 'Generate new token' → 'Generate new token (classic)'"
+        echo "  3. Give it a descriptive name (e.g., 'PawMate Result Submission')"
+        echo "  4. Select the 'repo' scope (required for creating issues)"
+        echo "  5. Click 'Generate token' and copy the token immediately"
+        echo ""
+        print_info "Where to set your token (choose one method):"
+        echo ""
+        echo "  Method 1: Environment variable (recommended for temporary use)"
+        echo "    export GITHUB_TOKEN=your-token-here"
+        echo ""
+        echo "  Method 2: Configuration file (recommended for persistent use)"
+        echo "    Add this line to: $CONFIG_FILE"
+        echo "    GITHUB_TOKEN=your-token-here"
+        echo ""
+        print_info "Priority: Config file is checked first, then environment variable."
+        echo ""
+        print_info "Token permissions required:"
+        echo "  - 'repo' scope (for creating issues in the repository)"
+        echo ""
+        print_info "Repository: https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}"
+        echo ""
+        exit 1
     fi
     
     echo ""
-    print_success "Thank you for submitting your benchmark results!"
-    echo ""
+    print_info "Creating GitHub Issue..."
+    
+    # Create GitHub Issue
+    local issue_result
+    if issue_result=$(create_github_issue "$result_file" "$attribution" "$github_token") && [[ -n "$issue_result" ]]; then
+        local issue_url=$(echo "$issue_result" | cut -d'|' -f1)
+        local issue_number=$(echo "$issue_result" | cut -d'|' -f2)
+        
+        echo ""
+        print_success "GitHub Issue created successfully!"
+        echo ""
+        print_info "Issue #${issue_number}: ${issue_url}"
+        echo ""
+        print_success "Thank you for submitting your benchmark results!"
+        echo ""
+    else
+        print_error "Failed to create GitHub Issue"
+        echo ""
+        exit 1
+    fi
 }
 
 # Run main function

@@ -171,7 +171,7 @@ The UI MUST be **consumer-focused by default** (not developer/admin-focused):
   - simple error messages that map to error categories (ValidationError/Conflict/NotFound/AuthRequired)
 
 #### 4.3 Update Run Instructions
-Update or extend the existing `benchmark/run_instructions.md` to include:
+Update or extend the existing `{Workspace Path}/../benchmark/run_instructions.md` to include:
 - UI prerequisites (if any beyond the backend)
 - UI install/build commands (non-interactive)
 - UI start command
@@ -253,7 +253,7 @@ If you cannot make instructions fully non-interactive, record a clearly labeled 
 ---
 
 ### 7) Reporting Format (MUST)
-At completion, output a "UI Run Summary" at `{Workspace Path}/benchmark/ui_run_summary.md` that includes:
+At completion, output a "UI Run Summary" at `{Workspace Path}/../benchmark/ui_run_summary.md` that includes:
 - **Timestamps** (**ISO-8601 UTC with milliseconds**, e.g. `2025-12-17T22:59:33.123Z`):
   - `ui_generation_started`: When you began generating UI code
   - `ui_code_complete`: When all UI files have been written
@@ -314,7 +314,9 @@ cd {Spec Root}
 ./scripts/generate_result_file.sh --run-dir {Workspace Path}/..
 ```
 
-This will generate a result file that includes both API and UI completion.
+This will generate a result file in `{Workspace Path}/../benchmark/` that includes both API and UI completion.
+
+**Note**: All benchmark-related files (result files, AI run reports, UI run summaries, submission instructions) are stored in the `benchmark/` folder at the run level (sibling of `PawMate/` folder).
 
 #### 8.5.3 Submit Result File (Email Submission - Recommended)
 **For external developers (recommended method):**
@@ -323,8 +325,10 @@ After generating/updating the result file, the operator should submit via email:
 
 ```bash
 cd {Spec Root}
-./scripts/submit_result.sh {generated-filename}.json
+./scripts/submit_result.sh {Workspace Path}/../benchmark/{generated-filename}.json
 ```
+
+**Note**: The result file is located in `{Workspace Path}/../benchmark/` folder (benchmark folder is at run level, sibling of PawMate folder). Use the full path or navigate to the benchmark folder.
 
 This script will:
 - Validate the result file
@@ -364,7 +368,7 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 **For the operator:**
 1. **Check your current LLM usage/billing status NOW** (before the UI run completes)
 2. After the run completes, check again to determine the usage for this run
-3. **Record the following metrics in the UI run summary** at `{Workspace Path}/benchmark/ui_run_summary.md` under the "LLM Usage" section:
+3. **Record the following metrics in the UI run summary** at `{Workspace Path}/../benchmark/ui_run_summary.md` under the "LLM Usage" section:
    - `ui_model_used`: Model name/version (e.g., "claude-sonnet-4.5", "gpt-4-turbo")
    - `ui_requests`: Total number of LLM API requests made for UI generation
    - `ui_tokens`: Total tokens used for UI generation (input + output combined)
@@ -384,7 +388,7 @@ Before completing this run, you MUST prompt the operator to check their LLM usag
 
 Before marking this UI run as complete, please:
 1. Check your LLM usage/billing status
-2. Record the following metrics in the UI run summary at {Workspace Path}/benchmark/ui_run_summary.md under the "LLM Usage" section:
+2. Record the following metrics in the UI run summary at {Workspace Path}/../benchmark/ui_run_summary.md under the "LLM Usage" section:
    - ui_model_used: [Model name/version]
    - ui_requests: [Number of LLM API requests for UI]
    - ui_tokens: [Total tokens used for UI]
@@ -395,18 +399,20 @@ Check usage at: [Tool-specific instructions based on detected tool]
 ```
 
 **Next steps for operator:**
-1. **Record LLM usage metrics** in `{Workspace Path}/benchmark/ui_run_summary.md` (see LLM Usage section above)
+1. **Record LLM usage metrics** in `{Workspace Path}/../benchmark/ui_run_summary.md` (see LLM Usage section above)
 2. **Generate/update result file** (includes both API and UI):
    ```bash
    cd {Spec Root}
    ./scripts/generate_result_file.sh --run-dir {Workspace Path}/..
    ```
+   **Note**: The result file will be generated in `{Workspace Path}/../benchmark/` folder (benchmark folder is at run level, sibling of PawMate folder).
 3. **Submit result file via email** (recommended):
    ```bash
    cd {Spec Root}
-   ./scripts/submit_result.sh {generated-filename}.json
+   ./scripts/submit_result.sh {Workspace Path}/../benchmark/{generated-filename}.json
    ```
    **Note**: The script will open your email client with pre-filled content. You must manually click "Send" to submit the email.
+4. **Follow submission instructions**: See `{Workspace Path}/../benchmark/result_submission_instructions.md` for detailed submission instructions.
 
 See `{Spec Root}/docs/Submitting_Results.md` for detailed submission instructions.
 

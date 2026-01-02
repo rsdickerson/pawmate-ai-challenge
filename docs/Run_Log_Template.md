@@ -85,14 +85,16 @@
 ### 5) Artifact Bundle Checklist (`docs/Benchmarking_Method.md`) (Operator fills)
 #### 5.1 Required artifact paths
 - **tool_transcript_path**: [path]
-- **run_instructions_path**: [path]
-- **contract_artifact_path**: [path]
-- **acceptance_checklist_path**: [path]
+- **run_instructions_path**: [path] (benchmark/run_instructions.md at run level, sibling of PawMate folder)
+- **contract_artifact_path**: [path] (in application code: PawMate/backend/src/schema.graphql for GraphQL or PawMate/backend/openapi.yaml for REST)
+- **acceptance_checklist_path**: [path] (benchmark/acceptance_checklist.md at run level, sibling of PawMate folder)
 - **acceptance_evidence_path**: [path to logs/screenshots]
 - **determinism_evidence_path**: [path]
 - **overreach_evidence_path**: [path]
-- **ai_run_report_path**: benchmark/ai_run_report.md
-- **automated_tests_path**: [path to test folder/files]
+- **ai_run_report_path**: benchmark/ai_run_report.md (at run level, sibling of PawMate folder)
+- **automated_tests_path**: [path to test folder/files] (in application code: PawMate/backend/tests/ or similar)
+- **result_file_path**: benchmark/{tool-slug}_{model}_{api-type}_run{number}_{timestamp}.json (at run level, sibling of PawMate folder)
+- **result_submission_instructions_path**: benchmark/result_submission_instructions.md (at run level, sibling of PawMate folder)
 
 #### 5.2 Completeness check
 - [ ] Prompt wrapper saved
@@ -104,7 +106,11 @@
 - [ ] Overreach notes/evidence saved
 - [ ] AI run report saved (benchmark/ai_run_report.md)
 - [ ] Automated tests saved
+- [ ] Result file generated (benchmark/{tool-slug}_{model}_{api-type}_run{number}_{timestamp}.json)
+- [ ] Result submission instructions saved (benchmark/result_submission_instructions.md)
 - **notes**: [missing items or Unknowns]
+
+**Note**: All benchmark-related files (result files, AI run reports, submission instructions) should be stored in the `benchmark/` folder at the run level (sibling of `PawMate/` folder). Only application code and operational files belong in the `PawMate/` folder.
 
 ---
 

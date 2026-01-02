@@ -100,6 +100,7 @@ fi
 
 # Create run folder structure
 mkdir -p "$RUN_DIR/PawMate"
+mkdir -p "$RUN_DIR/benchmark"
 
 # Workspace path is the PawMate subfolder
 WORKSPACE_PATH="$RUN_DIR/PawMate"
@@ -232,8 +233,8 @@ else
     echo "$UI_RENDERED" > "$UI_PROMPT_FILE"
 fi
 
-# Generate result submission instructions
-cat > "$RUN_DIR/result_submission_instructions.md" <<EOF
+# Generate result submission instructions in benchmark folder (sibling of PawMate)
+cat > "$RUN_DIR/benchmark/result_submission_instructions.md" <<EOF
 # Result Submission Instructions
 
 ## Overview
@@ -249,13 +250,15 @@ cd "$REPO_ROOT"
 ./scripts/generate_result_file.sh --run-dir "$RUN_DIR"
 \`\`\`
 
-This will create a standardized result file (defaults to current directory) with a name like:
+This will create a standardized result file in the benchmark folder (\`benchmark/\`, sibling of \`PawMate/\`) with a name like:
 \`${TOOL_SLUG}_model${model}_${api_type}_run${RUN_NUMBER}_${TIMESTAMP}.json\`
+
+**Note**: All benchmark-related files (result files, AI run reports, submission instructions) are stored in the \`benchmark/\` folder at the run level (sibling of \`PawMate/\` folder).
 
 ### Step 2: Verify Automated Metrics
 The generation script extracts metrics from your run summary files:
 
-**From \`benchmark/ai_run_report.md\` or \`benchmark/RUN_SUMMARY.md\`:**
+**From \`benchmark/ai_run_report.md\` (at run level, sibling of \`PawMate/\`):**
 - \`generation_started\` - When code generation began
 - \`code_complete\` - When all code files were written
 - \`build_clean\` - When build completed successfully
@@ -267,7 +270,7 @@ The generation script extracts metrics from your run summary files:
 - \`interventions_count\` - Number of manual code edits or continuation prompts needed (ideal: 0)
 - \`reruns_count\` - Number of times the prompt was re-issued (ideal: 0)
 
-**From \`benchmark/ui_run_summary.md\` (if UI was built):**
+**From \`benchmark/ui_run_summary.md\` (at run level, sibling of \`PawMate/\`, if UI was built):**
 - \`ui_generation_started\` - When UI code generation began
 - \`ui_code_complete\` - When all UI files were written
 - \`ui_build_success\` - Boolean indicating successful UI build
@@ -294,8 +297,10 @@ Submit your result file via email using the submission script:
 
 \`\`\`bash
 cd "$REPO_ROOT"
-./scripts/submit_result.sh {generated-filename}.json
+./scripts/submit_result.sh "$RUN_DIR/benchmark/{generated-filename}.json"
 \`\`\`
+
+**Note**: The result file is located in \`benchmark/\` folder at the run level (sibling of \`PawMate/\`). Use the full path or navigate to the benchmark folder.
 
 The submission script will:
 - Validate your result file
@@ -345,7 +350,7 @@ If collected during run:
 
 If you cannot run the generation script, create the result file manually:
 
-1. Extract timestamps from \`benchmark/ai_run_report.md\` and \`benchmark/ui_run_summary.md\`
+1. Extract timestamps from \`benchmark/ai_run_report.md\` and \`benchmark/ui_run_summary.md\` (at run level, sibling of \`PawMate/\`)
 2. Follow \`docs/Result_File_Spec.md\` for the exact JSON format
 3. Ensure all timestamps are in ISO-8601 UTC with milliseconds format
 4. Set boolean flags based on build/test outcomes
@@ -379,8 +384,8 @@ If you cannot run the generation script, create the result file manually:
 
 - \`docs/Result_File_Spec.md\` - Complete result file format specification
 - \`docs/Submitting_Results.md\` - Detailed submission guide
-- \`benchmark/ai_run_report.md\` - API timing data source
-- \`benchmark/ui_run_summary.md\` - UI timing data source (if applicable)
+- \`benchmark/ai_run_report.md\` - API timing data source (at run level, sibling of \`PawMate/\`)
+- \`benchmark/ui_run_summary.md\` - UI timing data source (at run level, sibling of \`PawMate/\`, if applicable)
 
 ## Run Information
 

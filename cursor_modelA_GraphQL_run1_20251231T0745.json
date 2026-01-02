@@ -15,108 +15,57 @@
     "implementations": {
       "api": {
         "generation_metrics": {
-          "llm_model": "Auto",
+          "llm_model": "auto",
           "start_timestamp": "2025-12-31T13:47:32.000Z",
           "end_timestamp": "2025-12-31T14:11:32.000Z",
           "duration_minutes": 24.0,
           "clarifications_count": 0,
           "interventions_count": 0,
           "reruns_count": 0,
-          "test_runs": [
-            {
-              "run_number": 1,
-              "start_timestamp": "2025-12-31T13:53:01.000Z",
-              "end_timestamp": "2025-12-31T13:53:02.000Z",
-              "duration_minutes": 0.017,
-              "total_tests": 19,
-              "passed": 3,
-              "failed": 16,
-              "pass_rate": 0.158
-            },
-            {
-              "run_number": 2,
-              "start_timestamp": "2025-12-31T13:54:51.000Z",
-              "end_timestamp": "2025-12-31T13:54:52.000Z",
-              "duration_minutes": 0.017,
-              "total_tests": 19,
-              "passed": 15,
-              "failed": 4,
-              "pass_rate": 0.789
-            },
-            {
-              "run_number": 3,
-              "start_timestamp": "2025-12-31T13:56:11.000Z",
-              "end_timestamp": "2025-12-31T13:56:15.000Z",
-              "duration_minutes": 0.067,
-              "total_tests": 19,
-              "passed": 2,
-              "failed": 17,
-              "pass_rate": 0.105
-            },
-            {
-              "run_number": 4,
-              "start_timestamp": "2025-12-31T14:07:51.000Z",
-              "end_timestamp": "2025-12-31T14:08:00.000Z",
-              "duration_minutes": 0.15,
-              "total_tests": 19,
-              "passed": 11,
-              "failed": 8,
-              "pass_rate": 0.579
-            },
-            {
-              "run_number": 5,
-              "start_timestamp": "2025-12-31T14:10:23.000Z",
-              "end_timestamp": "2025-12-31T14:10:37.000Z",
-              "duration_minutes": 0.233,
-              "total_tests": 19,
-              "passed": 17,
-              "failed": 2,
-              "pass_rate": 0.895
-            },
-            {
-              "run_number": 6,
-              "start_timestamp": "2025-12-31T14:11:21.000Z",
-              "end_timestamp": "2025-12-31T14:11:32.000Z",
-              "duration_minutes": 0.183,
-              "total_tests": 19,
-              "passed": 19,
-              "failed": 0,
-              "pass_rate": 1.000
-            }
-          ],
+          "test_runs": [],
           "test_iterations_count": 6,
-          "llm_usage": {
-            "backend_model_used": "Auto",
-            "backend_requests": 2,
-            "backend_tokens": 10100000,
-            "ui_model_used": null,
-            "ui_requests": null,
-            "ui_tokens": null,
-            "usage_source": "tool_reported",
-            "estimated_cost_usd": null
-          }
+          "llm_usage": null
         },
         "acceptance": {
-          "pass_count": 19,
+          "pass_count": 0,
           "fail_count": 0,
           "not_run_count": 0,
-          "passrate": 1.0
+          "passrate": 0.0
         },
         "artifacts": {
-          "contract_artifact_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/schema.graphql",
+          "contract_artifact_path": "",
           "run_instructions_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/run_instructions.md",
-          "source_code_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/backend",
+          "source_code_path": "",
           "acceptance_checklist_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/acceptance_checklist.md",
-          "acceptance_evidence_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/backend/tests",
-          "determinism_evidence_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/backend/tests/seed.test.js",
-          "overreach_evidence_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/acceptance_checklist.md",
+          "acceptance_evidence_path": "",
+          "determinism_evidence_path": "",
+          "overreach_evidence_path": "",
           "ai_run_report_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/ai_run_report.md",
-          "automated_tests_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/backend/tests"
+          "automated_tests_path": ""
+        }
+      },
+      "ui": {
+        "generation_metrics": {
+          "llm_model": "auto",
+          "start_timestamp": "53.300Z",
+          "end_timestamp": "00.300Z",
+          "duration_minutes": 0,
+          "clarifications_count": 0,
+          "interventions_count": 0,
+          "reruns_count": 0,
+          "backend_changes_required": false,
+          "llm_usage": null
+        },
+        "build_success": true,
+        "artifacts": {
+          "ui_source_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/ui",
+          "ui_run_summary_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/ui_run_summary.md",
+          "run_instructions_path": "/Users/scott.dickerson/source/repos/pawmate-ai-challenge/runs/20251231T0745/PawMate/benchmark/run_instructions.md"
         }
       }
     },
     "submission": {
-      "submitted_timestamp": "2025-12-31T14:15:27.000Z",
+      "submitted_timestamp": "2026-01-01T15:03:08.000Z",
       "submitted_by": "Scott Dickerson",
       "submission_method": "automated"
     }

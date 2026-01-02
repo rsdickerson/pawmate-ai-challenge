@@ -20,7 +20,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Defaults
 RUN_DIR=""
-OUTPUT_DIR="."  # Default to current directory - users should copy to results repo
+OUTPUT_DIR=""  # Default to run directory - result file belongs with the run
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -52,6 +52,10 @@ fi
 
 # Resolve absolute paths
 RUN_DIR="$(cd "$RUN_DIR" && pwd)"
+# Default OUTPUT_DIR to benchmark folder at run level (sibling of PawMate folder)
+if [[ -z "$OUTPUT_DIR" ]]; then
+    OUTPUT_DIR="$RUN_DIR/benchmark"
+fi
 OUTPUT_DIR="$(mkdir -p "$OUTPUT_DIR" && cd "$OUTPUT_DIR" && pwd)"
 
 # Check run directory exists
@@ -127,6 +131,9 @@ if command -v git &> /dev/null && git -C "$REPO_ROOT" rev-parse --git-dir &> /de
 fi
 
 # Extract metrics from AI run report if it exists
+# Use absolute path for reading, but relative path for artifact reference
+# Benchmark folder is at run level, not inside workspace
+AI_RUN_REPORT_ABS="$RUN_DIR/benchmark/ai_run_report.md"
 GENERATION_STARTED=""
 CODE_COMPLETE=""
 BUILD_CLEAN=""
@@ -142,7 +149,7 @@ BACKEND_RUNTIME=""
 BACKEND_FRAMEWORK=""
 DATABASE=""
 
-if [[ -f "$AI_RUN_REPORT" ]]; then
+if [[ -f "$AI_RUN_REPORT_ABS" ]]; then
     # Extract all timestamps from AI run report (handle markdown backticks and list format)
     # Pattern: - `field_name`: timestamp (need to match first colon after field name)
     if grep -q "generation_started" "$AI_RUN_REPORT"; then
@@ -182,39 +189,52 @@ print(round((end - start).total_seconds() / 60, 1))
     fi
     
     # Extract test results (handle markdown formatting with **bold**)
-    if grep -q "\*\*Total Tests\*\*" "$AI_RUN_REPORT"; then
-        TEST_TOTAL=$(grep "\*\*Total Tests\*\*" "$AI_RUN_REPORT" | head -1 | sed 's/.*\*\*Total Tests\*\*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    # Try to get from Test Summary section first, then fall back to individual patterns
+    if grep -q "\*\*Total Tests\*\*" "$AI_RUN_REPORT_ABS"; then
+        TEST_TOTAL=$(grep "\*\*Total Tests\*\*" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*\*\*Total Tests\*\*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -q "\*\*Passed\*\*" "$AI_RUN_REPORT"; then
-        TEST_PASSED=$(grep "\*\*Passed\*\*" "$AI_RUN_REPORT" | head -1 | sed 's/.*\*\*Passed\*\*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    # Extract final pass rate from "Final Pass Rate: X% (Y/Z passing)" format
+    if grep -qi "Final Pass Rate" "$AI_RUN_REPORT_ABS"; then
+        FINAL_PASS_LINE=$(grep -i "Final Pass Rate" "$AI_RUN_REPORT_ABS" | head -1)
+        # Extract "Y/Z passing" pattern
+        if echo "$FINAL_PASS_LINE" | grep -q "([0-9]*/[0-9]* passing)"; then
+            TEST_PASSED=$(echo "$FINAL_PASS_LINE" | sed 's/.*(\([0-9]*\)\/.*/\1/')
+            TEST_TOTAL=$(echo "$FINAL_PASS_LINE" | sed 's/.*\/\([0-9]*\) passing.*/\1/')
+            TEST_PASS_RATE=$(echo "$FINAL_PASS_LINE" | sed 's/.*Final Pass Rate.*: *\([0-9\.]*\)%.*/\1/')
+        fi
     fi
     
-    if grep -q "\*\*Failed\*\*" "$AI_RUN_REPORT"; then
-        TEST_FAILED=$(grep "\*\*Failed\*\*" "$AI_RUN_REPORT" | head -1 | sed 's/.*\*\*Failed\*\*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    # Fallback to individual patterns if not found
+    if [[ -z "$TEST_PASSED" ]] && grep -q "\*\*Passed\*\*" "$AI_RUN_REPORT_ABS"; then
+        TEST_PASSED=$(grep "\*\*Passed\*\*" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*\*\*Passed\*\*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -q "\*\*Pass Rate\*\*" "$AI_RUN_REPORT"; then
-        TEST_PASS_RATE=$(grep "\*\*Pass Rate\*\*" "$AI_RUN_REPORT" | head -1 | sed 's/.*\*\*Pass Rate\*\*: *//' | sed 's/%//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if [[ -z "$TEST_FAILED" ]] && grep -q "\*\*Failed\*\*" "$AI_RUN_REPORT_ABS"; then
+        TEST_FAILED=$(grep "\*\*Failed\*\*" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*\*\*Failed\*\*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    fi
+    
+    if [[ -z "$TEST_PASS_RATE" ]] && grep -q "\*\*Pass Rate\*\*" "$AI_RUN_REPORT_ABS"; then
+        TEST_PASS_RATE=$(grep "\*\*Pass Rate\*\*" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*\*\*Pass Rate\*\*: *//' | sed 's/%//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
     # Extract tech stack
-    if grep -q "Backend Runtime" "$AI_RUN_REPORT"; then
-        BACKEND_RUNTIME=$(grep "Backend Runtime" "$AI_RUN_REPORT" | head -1 | sed 's/.*Backend Runtime.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -q "Backend Runtime" "$AI_RUN_REPORT_ABS"; then
+        BACKEND_RUNTIME=$(grep "Backend Runtime" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*Backend Runtime.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -q "Backend Framework" "$AI_RUN_REPORT"; then
-        BACKEND_FRAMEWORK=$(grep "Backend Framework" "$AI_RUN_REPORT" | head -1 | sed 's/.*Backend Framework.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -q "Backend Framework" "$AI_RUN_REPORT_ABS"; then
+        BACKEND_FRAMEWORK=$(grep "Backend Framework" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*Backend Framework.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -q "Database:" "$AI_RUN_REPORT"; then
-        DATABASE=$(grep "Database:" "$AI_RUN_REPORT" | head -1 | sed 's/.*Database: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -q "Database:" "$AI_RUN_REPORT_ABS"; then
+        DATABASE=$(grep "Database:" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*Database: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
     # Extract LLM model
     LLM_MODEL="Unknown"
-    if grep -qi "LLM Model\|llm_model\|Model:" "$AI_RUN_REPORT"; then
-        LLM_MODEL=$(grep -i "LLM Model\|llm_model\|Model:" "$AI_RUN_REPORT" | head -1 | sed 's/.*[Ll][Ll][Mm] [Mm]odel.*: *//' | sed 's/.*Model: *//' | sed 's/\*\*//g' | sed 's/`//g' | head -c 100 | tr -d '[:space:]')
+    if grep -qi "LLM Model\|llm_model\|Model:" "$AI_RUN_REPORT_ABS"; then
+        LLM_MODEL=$(grep -i "LLM Model\|llm_model\|Model:" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*[Ll][Ll][Mm] [Mm]odel.*: *//' | sed 's/.*Model: *//' | sed 's/\*\*//g' | sed 's/`//g' | head -c 100 | tr -d '[:space:]')
         if [[ -z "$LLM_MODEL" || "$LLM_MODEL" == ":" ]]; then
             LLM_MODEL="Unknown"
         fi
@@ -222,8 +242,8 @@ print(round((end - start).total_seconds() / 60, 1))
     
     # Extract test iterations count
     TEST_ITERATIONS_COUNT=""
-    if grep -qi "test_iterations" "$AI_RUN_REPORT"; then
-        TEST_ITERATIONS_COUNT=$(grep -i "test_iterations" "$AI_RUN_REPORT" | head -1 | sed 's/.*test_iterations.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "test_iterations" "$AI_RUN_REPORT_ABS"; then
+        TEST_ITERATIONS_COUNT=$(grep -i "test_iterations" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*test_iterations.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
     # Extract operator intervention metrics
@@ -231,16 +251,16 @@ print(round((end - start).total_seconds() / 60, 1))
     INTERVENTIONS_COUNT=""
     RERUNS_COUNT=""
     
-    if grep -qi "clarifications_count\|clarifications:" "$AI_RUN_REPORT"; then
-        CLARIFICATIONS_COUNT=$(grep -i "clarifications_count\|clarifications:" "$AI_RUN_REPORT" | head -1 | sed 's/.*clarifications.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "clarifications_count\|clarifications:" "$AI_RUN_REPORT_ABS"; then
+        CLARIFICATIONS_COUNT=$(grep -i "clarifications_count\|clarifications:" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*clarifications.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -qi "interventions_count\|interventions:" "$AI_RUN_REPORT"; then
-        INTERVENTIONS_COUNT=$(grep -i "interventions_count\|interventions:" "$AI_RUN_REPORT" | head -1 | sed 's/.*interventions.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "interventions_count\|interventions:" "$AI_RUN_REPORT_ABS"; then
+        INTERVENTIONS_COUNT=$(grep -i "interventions_count\|interventions:" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*interventions.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -qi "reruns_count\|reruns:" "$AI_RUN_REPORT"; then
-        RERUNS_COUNT=$(grep -i "reruns_count\|reruns:" "$AI_RUN_REPORT" | head -1 | sed 's/.*reruns.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "reruns_count\|reruns:" "$AI_RUN_REPORT_ABS"; then
+        RERUNS_COUNT=$(grep -i "reruns_count\|reruns:" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*reruns.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
     # Extract LLM usage metrics
@@ -252,43 +272,68 @@ print(round((end - start).total_seconds() / 60, 1))
     LLM_COST_CURRENCY="USD"
     LLM_USAGE_SOURCE="unknown"
     
-    if grep -qi "input_tokens" "$AI_RUN_REPORT"; then
-        LLM_INPUT_TOKENS=$(grep -i "input_tokens" "$AI_RUN_REPORT" | head -1 | sed 's/.*input_tokens.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "backend_tokens\|total_tokens" "$AI_RUN_REPORT_ABS"; then
+        # Extract token value, handling markdown backticks and various formats
+        TOKEN_VALUE=$(grep -i "backend_tokens\|total_tokens" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*backend_tokens.*: *//' | sed 's/.*total_tokens.*: *//' | sed 's/`//g' | sed 's/\*\*//g' | sed 's/\[.*\]//g' | tr -d '[:space:]')
+        # Convert M/K suffixes to numbers
+        if echo "$TOKEN_VALUE" | grep -qi "M"; then
+            # Handle decimal M values like "11.2M"
+            NUM=$(echo "$TOKEN_VALUE" | sed 's/M//i' | sed 's/m//i')
+            LLM_TOTAL_TOKENS=$(echo "$NUM * 1000000" | bc 2>/dev/null | tr -d '[:space:]' || echo "")
+        elif echo "$TOKEN_VALUE" | grep -qi "K"; then
+            NUM=$(echo "$TOKEN_VALUE" | sed 's/K//i' | sed 's/k//i')
+            LLM_TOTAL_TOKENS=$(echo "$NUM * 1000" | bc 2>/dev/null | tr -d '[:space:]' || echo "")
+        else
+            # Plain number
+            LLM_TOTAL_TOKENS=$(echo "$TOKEN_VALUE" | tr -d '[:space:]')
+        fi
+        # Only set usage_source if we successfully extracted a value
+        if [[ -n "${LLM_TOTAL_TOKENS:-}" ]]; then
+            LLM_USAGE_SOURCE="tool_reported"
+        fi
+    fi
+    
+    if grep -qi "backend_requests\|requests_count" "$AI_RUN_REPORT_ABS"; then
+        LLM_REQUESTS_COUNT=$(grep -i "backend_requests\|requests_count" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*backend_requests.*: *//' | sed 's/.*requests_count.*: *//' | sed 's/`//g' | sed 's/\*\*//g' | sed 's/\[.*\]//g' | tr -d '[:space:]')
+    fi
+    
+    if grep -qi "input_tokens" "$AI_RUN_REPORT_ABS"; then
+        LLM_INPUT_TOKENS=$(grep -i "input_tokens" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*input_tokens.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
         LLM_USAGE_SOURCE="tool_reported"
     fi
     
-    if grep -qi "output_tokens" "$AI_RUN_REPORT"; then
-        LLM_OUTPUT_TOKENS=$(grep -i "output_tokens" "$AI_RUN_REPORT" | head -1 | sed 's/.*output_tokens.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "output_tokens" "$AI_RUN_REPORT_ABS"; then
+        LLM_OUTPUT_TOKENS=$(grep -i "output_tokens" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*output_tokens.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
     fi
     
-    if grep -qi "total_tokens" "$AI_RUN_REPORT"; then
-        LLM_TOTAL_TOKENS=$(grep -i "total_tokens" "$AI_RUN_REPORT" | head -1 | sed 's/.*total_tokens.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
+    if grep -qi "estimated_cost" "$AI_RUN_REPORT_ABS"; then
+        LLM_ESTIMATED_COST=$(grep -i "estimated_cost" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*estimated_cost.*: *//' | sed 's/\*\*//g' | sed 's/USD//' | tr -d '[:space:]')
     fi
     
-    if grep -qi "requests_count" "$AI_RUN_REPORT"; then
-        LLM_REQUESTS_COUNT=$(grep -i "requests_count" "$AI_RUN_REPORT" | head -1 | sed 's/.*requests_count.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]')
-    fi
-    
-    if grep -qi "estimated_cost" "$AI_RUN_REPORT"; then
-        LLM_ESTIMATED_COST=$(grep -i "estimated_cost" "$AI_RUN_REPORT" | head -1 | sed 's/.*estimated_cost.*: *//' | sed 's/\*\*//g' | sed 's/USD//' | tr -d '[:space:]')
-    fi
-    
-    if grep -qi "cost_currency" "$AI_RUN_REPORT"; then
-        LLM_COST_CURRENCY=$(grep -i "cost_currency" "$AI_RUN_REPORT" | head -1 | sed 's/.*cost_currency.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+    if grep -qi "cost_currency" "$AI_RUN_REPORT_ABS"; then
+        LLM_COST_CURRENCY=$(grep -i "cost_currency" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*cost_currency.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
         if [[ -z "$LLM_COST_CURRENCY" ]]; then
             LLM_COST_CURRENCY="USD"
         fi
     fi
     
-    if grep -qi "usage_source" "$AI_RUN_REPORT"; then
-        USAGE_SRC=$(grep -i "usage_source" "$AI_RUN_REPORT" | head -1 | sed 's/.*usage_source.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+    if grep -qi "usage_source" "$AI_RUN_REPORT_ABS"; then
+        USAGE_SRC=$(grep -i "usage_source" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*usage_source.*: *//' | sed 's/\*\*//g' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$USAGE_SRC" == "tool_reported" || "$USAGE_SRC" == "operator_estimated" || "$USAGE_SRC" == "unknown" ]]; then
             LLM_USAGE_SOURCE="$USAGE_SRC"
         fi
     fi
     
+    # Extract backend_model_used if available
+    if grep -qi "backend_model_used" "$AI_RUN_REPORT_ABS"; then
+        BACKEND_MODEL=$(grep -i "backend_model_used" "$AI_RUN_REPORT_ABS" | head -1 | sed 's/.*backend_model_used.*: *//' | sed 's/\*\*//g' | sed 's/`//g' | tr -d '[:space:]')
+        if [[ -n "$BACKEND_MODEL" && "$BACKEND_MODEL" != ":" ]]; then
+            LLM_MODEL="$BACKEND_MODEL"
+        fi
+    fi
+    
     # Extract test runs - parse all test_run_N_start, test_run_N_end, etc.
-    # We'll pass the AI run report path to Python script to parse test runs properly
+    # We'll pass the AI run report absolute path to Python script to parse test runs properly
 fi
 
 # Get run environment
@@ -297,8 +342,8 @@ RUN_ENV="${run_environment:-$(uname -s) $(uname -r)}"
 # Generate run_id if not set
 RUN_ID="${run_id:-${tool// /-}-Model${model}-$(basename "$RUN_DIR")}"
 
-# Determine artifact paths (relative to repo root)
-WORKSPACE_REL=$(realpath --relative-to="$REPO_ROOT" "$workspace" 2>/dev/null || echo "$workspace")
+# Determine artifact paths (relative to run folder, or empty if not accessible)
+# Note: Artifacts are in the run folder, so paths should be relative to run folder or empty
 TOOL_TRANSCRIPT_PATH=""
 RUN_INSTRUCTIONS_PATH=""
 CONTRACT_ARTIFACT_PATH=""
@@ -307,54 +352,63 @@ ACCEPTANCE_EVIDENCE_PATH=""
 DETERMINISM_EVIDENCE_PATH=""
 OVERREACH_EVIDENCE_PATH=""
 AUTOMATED_TESTS_PATH=""
+AI_RUN_REPORT_PATH=""
 
-# Find artifacts
+# Find artifacts relative to run folder
 if [[ -f "$RUN_DIR/transcript.md" ]]; then
-    TOOL_TRANSCRIPT_PATH=$(realpath --relative-to="$REPO_ROOT" "$RUN_DIR/transcript.md" 2>/dev/null || echo "$RUN_DIR/transcript.md")
+    TOOL_TRANSCRIPT_PATH="transcript.md"
 fi
 
 if [[ -f "$workspace/benchmark/run_instructions.md" ]]; then
-    RUN_INSTRUCTIONS_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/benchmark/run_instructions.md" 2>/dev/null || echo "$workspace/benchmark/run_instructions.md")
+    RUN_INSTRUCTIONS_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/benchmark/run_instructions.md" 2>/dev/null || echo "")
 fi
 
+# Find contract artifact (in application code, not benchmark folder)
 if [[ "$api_type" == "REST" ]]; then
     # Check backend directory first, then workspace root
-    for file in "$workspace/backend/openapi.yaml" "$workspace/backend/openapi.yml" "$workspace"/*.yaml "$workspace"/*.yml "$workspace"/openapi.* "$workspace"/api.*; do
-        if [[ -f "$file" ]]; then
-            CONTRACT_ARTIFACT_PATH=$(realpath --relative-to="$REPO_ROOT" "$file" 2>/dev/null || echo "$file")
-            break
-        fi
-    done
+    if [[ -f "$workspace/backend/openapi.yaml" ]]; then
+        CONTRACT_ARTIFACT_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/backend/openapi.yaml" 2>/dev/null || echo "")
+    elif [[ -f "$workspace/openapi.yaml" ]]; then
+        CONTRACT_ARTIFACT_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/openapi.yaml" 2>/dev/null || echo "")
+    fi
 else
-    for file in "$workspace"/*.graphql "$workspace"/schema.*; do
-        if [[ -f "$file" ]]; then
-            CONTRACT_ARTIFACT_PATH=$(realpath --relative-to="$REPO_ROOT" "$file" 2>/dev/null || echo "$file")
-            break
-        fi
-    done
+    # GraphQL - check backend/src directory
+    if [[ -f "$workspace/backend/src/schema.graphql" ]]; then
+        CONTRACT_ARTIFACT_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/backend/src/schema.graphql" 2>/dev/null || echo "")
+    elif [[ -f "$workspace/schema.graphql" ]]; then
+        CONTRACT_ARTIFACT_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/schema.graphql" 2>/dev/null || echo "")
+    fi
 fi
 
 if [[ -f "$workspace/benchmark/acceptance_checklist.md" ]]; then
-    ACCEPTANCE_CHECKLIST_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/benchmark/acceptance_checklist.md" 2>/dev/null || echo "$workspace/benchmark/acceptance_checklist.md")
+    ACCEPTANCE_CHECKLIST_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/benchmark/acceptance_checklist.md" 2>/dev/null || echo "")
 fi
 
+# AI run report path - artifacts are in run folder, paths not needed in result file
+AI_RUN_REPORT_PATH=""
+
+# Evidence paths - these are typically in run folder
 if [[ -d "$RUN_DIR/acceptance_evidence" ]]; then
-    ACCEPTANCE_EVIDENCE_PATH=$(realpath --relative-to="$REPO_ROOT" "$RUN_DIR/acceptance_evidence" 2>/dev/null || echo "$RUN_DIR/acceptance_evidence")
+    ACCEPTANCE_EVIDENCE_PATH="acceptance_evidence"
 fi
 
 if [[ -f "$RUN_DIR/determinism_evidence.md" ]] || [[ -d "$RUN_DIR/determinism_evidence" ]]; then
-    DETERMINISM_EVIDENCE_PATH=$(realpath --relative-to="$REPO_ROOT" "$RUN_DIR/determinism_evidence.md" 2>/dev/null || realpath --relative-to="$REPO_ROOT" "$RUN_DIR/determinism_evidence" 2>/dev/null || echo "$RUN_DIR/determinism_evidence")
+    if [[ -f "$RUN_DIR/determinism_evidence.md" ]]; then
+        DETERMINISM_EVIDENCE_PATH="determinism_evidence.md"
+    else
+        DETERMINISM_EVIDENCE_PATH="determinism_evidence"
+    fi
 fi
 
 if [[ -f "$RUN_DIR/overreach_notes.md" ]]; then
-    OVERREACH_EVIDENCE_PATH=$(realpath --relative-to="$REPO_ROOT" "$RUN_DIR/overreach_notes.md" 2>/dev/null || echo "$RUN_DIR/overreach_notes.md")
+    OVERREACH_EVIDENCE_PATH="overreach_notes.md"
 fi
 
-# Check for tests in backend/src/tests or workspace/tests
-if [[ -d "$workspace/backend/src/tests" ]]; then
-    AUTOMATED_TESTS_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/backend/src/tests" 2>/dev/null || echo "$workspace/backend/src/tests")
+# Check for tests - relative to run folder
+if [[ -d "$workspace/backend/tests" ]]; then
+    AUTOMATED_TESTS_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/backend/tests" 2>/dev/null || echo "")
 elif [[ -d "$workspace/tests" ]]; then
-    AUTOMATED_TESTS_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/tests" 2>/dev/null || echo "$workspace/tests")
+    AUTOMATED_TESTS_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/tests" 2>/dev/null || echo "")
 fi
 
 # Check for UI implementation
@@ -378,11 +432,11 @@ UI_RERUNS_COUNT=""
 UI_BACKEND_CHANGES_REQUIRED=false
 
 if [[ -d "$workspace/ui" ]]; then
-    UI_SOURCE_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/ui" 2>/dev/null || echo "$workspace/ui")
+    UI_SOURCE_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/ui" 2>/dev/null || echo "")
     
     # Check for UI run summary
     if [[ -f "$workspace/benchmark/ui_run_summary.md" ]]; then
-        UI_RUN_SUMMARY_PATH=$(realpath --relative-to="$REPO_ROOT" "$workspace/benchmark/ui_run_summary.md" 2>/dev/null || echo "$workspace/benchmark/ui_run_summary.md")
+        UI_RUN_SUMMARY_PATH=$(realpath --relative-to="$RUN_DIR" "$workspace/benchmark/ui_run_summary.md" 2>/dev/null || echo "")
         
         # Extract UI metrics from UI run summary
         if grep -qi "ui_generation_started\|ui_build_success" "$workspace/benchmark/ui_run_summary.md"; then
@@ -440,7 +494,7 @@ fi
 
 # Generate result file as JSON - v2.0 schema format
 TEMP_SCRIPT=$(mktemp)
-cat > "$TEMP_SCRIPT" <<PYTHON_EOF
+cat > "$TEMP_SCRIPT" <<'PYTHON_EOF'
 import json
 import sys
 import re
@@ -468,28 +522,39 @@ def parse_test_runs(ai_run_report_path):
         with open(ai_run_report_path, 'r') as f:
             content = f.read()
         
-        # Find all test_run_N_start patterns
-        pattern = r'test_run_(\d+)_start[:\s]*([0-9TZ:\.-]+)'
+        # Find all test_run_N_start patterns (handle markdown format: - `test_run_N_start`: timestamp)
+        # Pattern matches: `test_run_N_start`: timestamp or test_run_N_start: timestamp
+        pattern = r'`?test_run_(\d+)_start`?[:\s]*([0-9TZ:\.-]+)'
         matches = re.findall(pattern, content, re.IGNORECASE)
         
         for run_num_str, start_ts in matches:
             run_num = int(run_num_str)
             
+            # Clean timestamp (remove trailing "(estimated)" or other text)
+            start_ts = start_ts.split('(')[0].strip()
+            
             # Find corresponding end timestamp
-            end_pattern = f'test_run_{run_num}_end[:\s]*([0-9TZ:\.-]+)'
+            end_pattern = r'`?test_run_{}_end`?[:\s]*([0-9TZ:\.-]+)'.format(run_num)
             end_match = re.search(end_pattern, content, re.IGNORECASE)
-            end_ts = end_match.group(1) if end_match else None
+            end_ts = None
+            if end_match:
+                end_ts = end_match.group(1).split('(')[0].strip()
             
             # Find test results for this run
-            total_pattern = f'test_run_{run_num}_total[:\s]*(\d+)'
-            passed_pattern = f'test_run_{run_num}_passed[:\s]*(\d+)'
-            failed_pattern = f'test_run_{run_num}_failed[:\s]*(\d+)'
-            passrate_pattern = f'test_run_{run_num}_pass_rate[:\s]*([0-9\.]+)'
+            total_pattern = r'`?test_run_{}_total`?[:\s]*(\d+)'.format(run_num)
+            passed_pattern = r'`?test_run_{}_passed`?[:\s]*(\d+)'.format(run_num)
+            failed_pattern = r'`?test_run_{}_failed`?[:\s]*(\d+)'.format(run_num)
+            passrate_pattern = r'`?test_run_{}_pass_rate`?[:\s]*([0-9\.]+)'.format(run_num)
             
-            total = to_num(re.search(total_pattern, content, re.IGNORECASE).group(1)) if re.search(total_pattern, content, re.IGNORECASE) else None
-            passed = to_num(re.search(passed_pattern, content, re.IGNORECASE).group(1)) if re.search(passed_pattern, content, re.IGNORECASE) else None
-            failed = to_num(re.search(failed_pattern, content, re.IGNORECASE).group(1)) if re.search(failed_pattern, content, re.IGNORECASE) else None
-            pass_rate = to_num(re.search(passrate_pattern, content, re.IGNORECASE).group(1)) if re.search(passrate_pattern, content, re.IGNORECASE) else None
+            total_match = re.search(total_pattern, content, re.IGNORECASE)
+            passed_match = re.search(passed_pattern, content, re.IGNORECASE)
+            failed_match = re.search(failed_pattern, content, re.IGNORECASE)
+            passrate_match = re.search(passrate_pattern, content, re.IGNORECASE)
+            
+            total = to_num(total_match.group(1)) if total_match else None
+            passed = to_num(passed_match.group(1)) if passed_match else None
+            failed = to_num(failed_match.group(1)) if failed_match else None
+            pass_rate = to_num(passrate_match.group(1)) if passrate_match else None
             
             # Calculate duration if we have both timestamps
             duration_minutes = None
@@ -501,7 +566,7 @@ def parse_test_runs(ai_run_report_path):
                 except:
                     pass
             
-            if start_ts and end_ts and total is not None:
+            if start_ts and end_ts and total is not None and passed is not None:
                 test_runs.append({
                     "run_number": run_num,
                     "start_timestamp": start_ts,
@@ -552,7 +617,7 @@ llm_estimated_cost = to_num(args[i+26]) if len(args) > i+26 and args[i+26] else 
 llm_cost_currency = args[i+27] if len(args) > i+27 and args[i+27] else "USD"
 llm_usage_source = args[i+28] if len(args) > i+28 and args[i+28] in ["tool_reported", "operator_estimated", "unknown"] else "unknown"
 llm_model = args[i+29] if len(args) > i+29 else "Unknown"
-ai_run_report_path = args[i+30] if len(args) > i+30 else ""
+ai_run_report_path = args[i+30] if len(args) > i+30 and args[i+30] else ""
 contract_artifact_path = args[i+31] if len(args) > i+31 else ""
 run_instructions_path = args[i+32] if len(args) > i+32 else ""
 acceptance_checklist_path = args[i+33] if len(args) > i+33 else ""
@@ -582,11 +647,20 @@ submission_method = args[i+56] if len(args) > i+56 else "automated"
 
 # Parse test runs from AI run report
 test_runs = []
-if ai_run_report_path:
-    test_runs = parse_test_runs(ai_run_report_path)
-    # If we parsed test runs but don't have iterations count, use the count
-    if not test_iterations_count and test_runs:
-        test_iterations_count = len(test_runs)
+if ai_run_report_path and ai_run_report_path.strip():
+    try:
+        from pathlib import Path
+        if Path(ai_run_report_path).exists():
+            test_runs = parse_test_runs(ai_run_report_path)
+            # If we parsed test runs but don't have iterations count, use the count
+            if not test_iterations_count and test_runs:
+                test_iterations_count = len(test_runs)
+    except Exception as e:
+        import sys
+        print(f"Warning: Failed to parse test runs: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        pass  # If parsing fails, continue with empty test_runs
 
 # Convert pass_rate to decimal if needed
 passrate_decimal = None
@@ -677,17 +751,6 @@ result = {
                     "fail_count": test_failed or 0,
                     "not_run_count": 0,
                     "passrate": passrate_decimal if passrate_decimal is not None else 0.0
-                },
-                "artifacts": {
-                    "contract_artifact_path": contract_artifact_path,
-                    "run_instructions_path": run_instructions_path,
-                    "source_code_path": "",
-                    "acceptance_checklist_path": acceptance_checklist_path,
-                    "acceptance_evidence_path": "",
-                    "determinism_evidence_path": "",
-                    "overreach_evidence_path": "",
-                    "ai_run_report_path": ai_run_report_path,
-                    "automated_tests_path": ""
                 }
             }
         },
@@ -713,12 +776,7 @@ if ui_source_path:
             "backend_changes_required": ui_backend_changes_required,
             "llm_usage": ui_llm_usage
         },
-        "build_success": ui_build_success.lower() == "true" if ui_build_success else False,
-        "artifacts": {
-            "ui_source_path": ui_source_path,
-            "ui_run_summary_path": ui_run_summary_path,
-            "run_instructions_path": run_instructions_path
-        }
+        "build_success": ui_build_success.lower() == "true" if ui_build_success else False
     }
     result["result_data"]["implementations"]["ui"] = ui_impl
 
@@ -757,12 +815,12 @@ python3 "$TEMP_SCRIPT" \
     "${LLM_COST_CURRENCY:-USD}" \
     "${LLM_USAGE_SOURCE:-unknown}" \
     "${LLM_MODEL:-Unknown}" \
-    "${WORKSPACE_REL}/benchmark/ai_run_report.md" \
+    "${AI_RUN_REPORT_ABS:-}" \
     "${CONTRACT_ARTIFACT_PATH:-}" \
     "${RUN_INSTRUCTIONS_PATH:-}" \
     "${ACCEPTANCE_CHECKLIST_PATH:-}" \
     "$RUN_NUMBER" \
-    "$WORKSPACE_REL" \
+    "$workspace" \
     "${UI_SOURCE_PATH:-}" \
     "${UI_RUN_SUMMARY_PATH:-}" \
     "${UI_BUILD_SUCCESS:-}" \
@@ -820,7 +878,7 @@ echo "3. After completion, check again to calculate the difference"
 echo "4. Record usage metrics in the AI run report if available"
 echo ""
 
-if [[ -z "$LLM_INPUT_TOKENS" && -z "$LLM_TOTAL_TOKENS" ]]; then
+if [[ -z "${LLM_INPUT_TOKENS:-}" && -z "${LLM_TOTAL_TOKENS:-}" ]]; then
     echo "ℹ️  No LLM usage metrics found in AI run report."
     echo "   Please add them manually to the result file or AI run report."
     echo ""
@@ -838,7 +896,7 @@ if [[ -n "$TOTAL_MINUTES" ]]; then
 fi
 echo ""
 echo "Next steps:"
-echo "  1. Review the generated file"
-echo "  2. Validate: ./scripts/validate_result.sh $OUTPUT_PATH"
-echo "  3. Submit via git: git add $OUTPUT_PATH && git commit -m 'Add result: ${OUTPUT_FILENAME}'"
+echo "  1. Review the generated file: $OUTPUT_PATH"
+echo "  2. Submit via email: ./scripts/submit_result.sh $OUTPUT_PATH"
+echo "  3. Or validate and submit manually"
 
