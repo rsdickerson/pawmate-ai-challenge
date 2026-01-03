@@ -31,6 +31,7 @@ program
   .option('--tool-ver <version>', 'Tool version/build id')
   .option('--spec-ver <version>', 'Frozen spec version (defaults to SPEC_VERSION file)')
   .option('--run-dir <path>', 'Override auto-generated run folder path')
+  .option('--hidden', 'Create hidden directory (starts with dot)')
   .action(async (options) => {
     try {
       await init(options);

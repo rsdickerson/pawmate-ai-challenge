@@ -47,7 +47,10 @@ export default async function init(options) {
   // Generate run folder path
   const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, '').replace('T', 'T').slice(0, 15);
   const cwd = process.cwd();
-  const finalRunDir = runDir || path.join(cwd, `.pawmate-run-${timestamp}`);
+  
+  // Default: visible directory. --hidden flag creates hidden directory
+  const dirPrefix = options.hidden ? '.pawmate-run' : 'pawmate-run';
+  const finalRunDir = runDir || path.join(cwd, `${dirPrefix}-${timestamp}`);
   
   // Create run folder structure
   await fs.ensureDir(path.join(finalRunDir, 'PawMate'));

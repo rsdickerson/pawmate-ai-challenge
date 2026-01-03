@@ -18,11 +18,11 @@ cd my-pawmate-benchmark
 pawmate init --profile model-a-rest --tool "Cursor" --tool-ver "v0.43"
 
 # Copy the generated prompts to your AI agent
-cat .pawmate-run-*/start_build_api_prompt.txt
-cat .pawmate-run-*/start_build_ui_prompt.txt
+cat pawmate-run-*/start_build_api_prompt.txt
+cat pawmate-run-*/start_build_ui_prompt.txt
 
 # After completing the benchmark, submit results
-pawmate submit .pawmate-run-*/benchmark/result.json
+pawmate submit pawmate-run-*/benchmark/result.json
 ```
 
 ## Installation
@@ -65,6 +65,7 @@ pawmate init --profile <profile> --tool <tool-name> [options]
 - `--tool-ver <version>` - Tool version or build ID
 - `--spec-ver <version>` - Frozen spec version (defaults to bundled version)
 - `--run-dir <path>` - Custom run directory path
+- `--hidden` - Create hidden directory (starts with dot, for power users)
 
 **Profiles:**
 
@@ -81,12 +82,19 @@ pawmate init --profile model-a-rest --tool "Cursor" --tool-ver "v0.43.1"
 
 **What it creates:**
 
-- `.pawmate-run-<timestamp>/` - Run directory
+- `pawmate-run-<timestamp>/` - Run directory (visible by default)
   - `start_build_api_prompt.txt` - API/backend prompt
   - `start_build_ui_prompt.txt` - UI/frontend prompt
   - `run.config` - Run configuration
   - `PawMate/` - Workspace for generated code
   - `benchmark/` - Benchmark artifacts folder
+
+**Note:** Use `--hidden` flag to create `.pawmate-run-<timestamp>/` (hidden directory) instead.
+
+**Directory Naming Philosophy:**
+- **Default (visible):** Most users prefer seeing their run folders - no surprises, easy to find
+- **Hidden option:** Power users who want minimal clutter can opt-in with `--hidden`
+- **Benefit:** Fewer "where did my files go?" support questions
 
 ### `pawmate submit`
 
@@ -162,14 +170,19 @@ pawmate submit result.json --github-token your-token-here
 ```bash
 mkdir pawmate-benchmark && cd pawmate-benchmark
 pawmate init --profile model-a-rest --tool "Cursor" --tool-ver "v0.43"
+# Creates pawmate-run-<timestamp>/ (visible directory)
+
+# Power users can use --hidden for a cleaner directory listing:
+# pawmate init --profile model-a-rest --tool "Cursor" --hidden
+# Creates .pawmate-run-<timestamp>/ (hidden directory)
 ```
 
 ### 2. Copy Prompts to AI Agent
 
 Open the generated prompt files and copy their contents:
 
-- **API Prompt:** `.pawmate-run-<timestamp>/start_build_api_prompt.txt`
-- **UI Prompt:** `.pawmate-run-<timestamp>/start_build_ui_prompt.txt`
+- **API Prompt:** `pawmate-run-<timestamp>/start_build_api_prompt.txt`
+- **UI Prompt:** `pawmate-run-<timestamp>/start_build_ui_prompt.txt`
 
 Paste each prompt as the first message in a new AI agent session.
 
@@ -185,7 +198,7 @@ The AI agent will:
 ### 4. Submit Results
 
 ```bash
-pawmate submit .pawmate-run-*/benchmark/result.json
+pawmate submit pawmate-run-*/benchmark/result.json
 ```
 
 Review and send the pre-filled email. Results will be published at:
